@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "@earendil-works/pi-coding-agent": [
+        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
+      ],
+      "@earendil-works/pi-ai": [
+        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/index.d.ts"
+      ],
+      "@earendil-works/pi-tui": [
+        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
+      ],
+      "@gotgenes/pi-permission-system": [
+        "vendor/pi-packages/packages/pi-permission-system/src/service.ts"
+      ],
+      "typebox": [
+        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/typebox/build/index.d.mts"
+      ]
+    },
+    "typeRoots": [
+      "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@types"
+    ],
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["pi-extensions/**/*.ts"]
+}

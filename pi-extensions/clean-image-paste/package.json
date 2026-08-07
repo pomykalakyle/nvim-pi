@@ -1,0 +1,14 @@
+{
+  "name": "nvim-pi-clean-image-paste",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mariozechner/clipboard": "0.3.9"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

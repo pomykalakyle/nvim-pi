@@ -1,0 +1,20 @@
+#!/bin/sh
+# Deprecated Codex-only build script retained for migration reference.
+: <<'DEPRECATED_CODEX_BUILD'
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+APP_DIR="$SCRIPT_DIR/.build/CodexHandsfree.app"
+CONTENTS_DIR="$APP_DIR/Contents"
+MACOS_DIR="$CONTENTS_DIR/MacOS"
+
+swift build --package-path "$SCRIPT_DIR" --configuration release
+BIN_DIR=$(swift build --package-path "$SCRIPT_DIR" --configuration release --show-bin-path)
+
+mkdir -p "$MACOS_DIR"
+cp "$BIN_DIR/codex-handsfree" "$MACOS_DIR/codex-handsfree"
+cp "$SCRIPT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
+codesign --force --sign - --identifier com.kylepomykala.codex-handsfree "$APP_DIR"
+
+printf '%s\n' "$MACOS_DIR/codex-handsfree"
+DEPRECATED_CODEX_BUILD

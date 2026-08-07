@@ -1,0 +1,14 @@
+tt.*
+.tests
+doc/tags
+debug
+.repro
+foo.*
+*.log
+.pi/
+.pi-subagents/
+node_modules/
+data
+codex-approval-diff-live-test.txt
+codex-hook-probe.txt
+helpers/codex-handsfree/.build/

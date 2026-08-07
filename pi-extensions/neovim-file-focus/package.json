@@ -1,0 +1,19 @@
+{
+  "name": "nvim-pi-neovim-file-focus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "neovim"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "neovim": "5.4.0"
+  }
+}

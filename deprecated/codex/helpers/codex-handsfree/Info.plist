@@ -1,0 +1,30 @@
+<!-- Deprecated Codex-only configuration retained for migration reference.
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleExecutable</key>
+  <string>codex-handsfree</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.kylepomykala.codex-handsfree</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>Codex Hands-Free</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>LSBackgroundOnly</key>
+  <true/>
+  <key>LSMinimumSystemVersion</key>
+  <string>26.0</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Codex Hands-Free uses the microphone to transcribe spoken Codex messages and commands.</string>
+</dict>
+</plist>
+-->
