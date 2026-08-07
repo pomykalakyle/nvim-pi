@@ -6,6 +6,7 @@ vim.g.pi_diff_preview_layout = "side_by_side"
 local inline_compute_count = 0
 local inline_render_count = 0
 local inline_clear_count = 0
+local inline_render_error
 
 package.loaded["lazy"] = {
   load = function(options)
@@ -26,6 +27,9 @@ package.loaded["codediff.core.diff"] = {
 package.loaded["codediff.ui.inline"] = {
   render_inline_diff = function(buf, result, original_lines, proposed_lines, options)
     inline_render_count = inline_render_count + 1
+    if inline_render_error then
+      error(inline_render_error)
+    end
     assert(vim.api.nvim_buf_is_valid(buf))
     assert(type(result.changes) == "table")
     assert(original_lines[1] == 'local value = "before"')
@@ -108,14 +112,22 @@ local toggle_mapping = vim.fn.maparg("t", "n", false, true)
 assert(toggle_mapping.buffer == 1)
 assert(toggle_mapping.desc == "Pi: Toggle diff layout")
 
-vim.cmd("PiDiffToggle")
+inline_render_error = "forced inline render failure"
+local toggled, toggle_error = pcall(preview.toggle_layout)
+assert(toggled == false)
+assert(tostring(toggle_error):find(inline_render_error, 1, true))
+assert(#preview_windows() == 2)
+assert(vim.g.pi_diff_preview_layout == "side_by_side")
+inline_render_error = nil
+
+assert(preview.toggle_layout() == nil)
 assert(#preview_windows() == 1)
 local unified_win = preview_windows()[1]
 assert(vim.api.nvim_win_get_buf(unified_win) == preview_proposed_buf)
 assert(vim.wo[unified_win].diff == false)
 assert(vim.wo[unified_win].winbar == " Pi proposal: example.lua — Unified ")
 assert(inline_compute_count == 1)
-assert(inline_render_count == 1)
+assert(inline_render_count == 2)
 assert(vim.g.pi_diff_preview_layout == "unified")
 
 vim.api.nvim_feedkeys("t", "x", false)
@@ -134,7 +146,7 @@ assert(#preview_windows() == 2)
 vim.cmd("PiDiffToggle")
 assert(#preview_windows() == 1)
 assert(inline_compute_count == 1)
-assert(inline_render_count == 2)
+assert(inline_render_count == 3)
 assert(preview.close("preview-test"))
 assert(#preview_windows() == 0)
 assert(inline_clear_count == 2)
@@ -149,7 +161,7 @@ assert(vim.api.nvim_get_current_win() == pi_terminal_win)
 assert(preview.open(payload))
 assert(#preview_windows() == 1)
 assert(inline_compute_count == 2)
-assert(inline_render_count == 3)
+assert(inline_render_count == 4)
 vim.cmd("PiDiffToggle")
 assert(#preview_windows() == 2)
 assert(vim.g.pi_diff_preview_layout == "side_by_side")

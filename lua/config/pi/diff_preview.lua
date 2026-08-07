@@ -182,40 +182,31 @@ end
 local function render_inline_preview(preview)
   local diff_module, inline, load_error = load_inline_renderer()
   if not diff_module then
-    vim.notify("Pi diff preview: failed to load CodeDiff: " .. load_error, vim.log.levels.ERROR)
-    return false
+    error("failed to load CodeDiff: " .. load_error, 0)
   end
 
   local original_lines = vim.api.nvim_buf_get_lines(preview.before_buf, 0, -1, false)
   local proposed_lines = vim.api.nvim_buf_get_lines(preview.proposed_buf, 0, -1, false)
   if not preview.inline_diff_result then
-    local computed, result = pcall(diff_module.compute_diff, original_lines, proposed_lines, {
+    local result = diff_module.compute_diff(original_lines, proposed_lines, {
       max_computation_time_ms = 5000,
       ignore_trim_whitespace = false,
       compute_moves = false,
     })
-    if not computed or not result then
-      vim.notify("Pi diff preview: CodeDiff failed: " .. tostring(result), vim.log.levels.ERROR)
-      return false
+    if not result then
+      error("CodeDiff failed to compute the preview", 0)
     end
     preview.inline_diff_result = result
   end
 
-  local rendered, render_error = pcall(
-    inline.render_inline_diff,
+  inline.render_inline_diff(
     preview.proposed_buf,
     preview.inline_diff_result,
     original_lines,
     proposed_lines,
     { filetype = vim.bo[preview.proposed_buf].filetype }
   )
-  if not rendered then
-    vim.notify("Pi diff preview: CodeDiff render failed: " .. tostring(render_error), vim.log.levels.ERROR)
-    return false
-  end
-
   preview.inline_renderer = inline
-  return true
 end
 
 ---Save or restore a view without changing the caller's current window.
@@ -298,14 +289,11 @@ local function show_side_by_side(preview)
   restore_view(preview.before_win, preview.side_views and preview.side_views.before)
   restore_view(preview.proposed_win, preview.side_views and preview.side_views.proposed)
   preview.layout = "side_by_side"
-  return true
 end
 
 ---Replace the native split with CodeDiff's unified inline rendering.
 local function show_unified(preview)
-  if not render_inline_preview(preview) then
-    return false
-  end
+  render_inline_preview(preview)
 
   preview.side_views = {
     before = save_view(preview.before_win),
@@ -323,7 +311,6 @@ local function show_unified(preview)
   configure_window(preview, preview.before_win, "Unified")
   restore_view(preview.before_win, preview.unified_view)
   preview.layout = "unified"
-  return true
 end
 
 ---Toggle the active proposal between side-by-side and unified layouts.
@@ -331,27 +318,26 @@ function M.toggle_layout()
   local display = active_display
   local preview = display and display.preview
   if not preview or not preview.before_win or not vim.api.nvim_win_is_valid(preview.before_win) then
-    vim.notify("Pi diff preview: no active preview", vim.log.levels.WARN)
-    return false
+    error("Pi diff preview: no active preview", 0)
   end
 
   local original_win = vim.api.nvim_get_current_win()
   local focused_proposed = original_win == preview.proposed_win
   local focused_outside_preview = original_win ~= preview.before_win and not focused_proposed
-  local toggled
-
-  if preview.layout == "unified" then
-    preview.unified_view = save_view(preview.before_win)
-    toggled = show_side_by_side(preview)
-  else
-    toggled = show_unified(preview)
-  end
+  local toggled, toggle_error = pcall(function()
+    if preview.layout == "unified" then
+      preview.unified_view = save_view(preview.before_win)
+      show_side_by_side(preview)
+    else
+      show_unified(preview)
+    end
+  end)
 
   if not toggled then
     if vim.api.nvim_win_is_valid(original_win) then
       vim.api.nvim_set_current_win(original_win)
     end
-    return false
+    error(toggle_error, 0)
   end
 
   set_preferred_layout(preview.layout)
@@ -362,8 +348,6 @@ function M.toggle_layout()
   else
     vim.api.nvim_set_current_win(preview.before_win)
   end
-
-  return true
 end
 
 ---Close the active preview and restore the replaced editor buffer.
@@ -466,9 +450,10 @@ function M.open(payload)
     restore = restore,
   }
 
-  show_side_by_side(active_display.preview)
   if preferred_layout == "unified" then
     show_unified(active_display.preview)
+  else
+    show_side_by_side(active_display.preview)
   end
 
   local preview_rows, viewport_rows = preview_geometry(active_display.preview)
