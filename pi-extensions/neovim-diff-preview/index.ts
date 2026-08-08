@@ -7,10 +7,8 @@ import {
   isEditToolResult,
   isToolCallEventType,
   isWriteToolResult,
-  type EditToolInput,
   type ExtensionAPI,
   type ExtensionContext,
-  type WriteToolInput,
 } from "@earendil-works/pi-coding-agent";
 import { getVibingModeService } from "../vibing-mode/shared.js";
 import {
@@ -18,6 +16,12 @@ import {
   isPreviewResult,
   type PreviewResult,
 } from "./result.js";
+import {
+  registerPreviewAwareMutationTools,
+  type PreviewEditInput,
+  type PreviewWriteInput,
+  type UnfoldedRange,
+} from "./tools.js";
 
 const silentLogger = {
   level: "silent",
@@ -41,9 +45,16 @@ type Proposal = {
   filePath: string;
   oldContent: string;
   newContent: string;
+  unfoldedRanges: UnfoldedRange[];
 };
 type ActivePreview = {
   toolCallId: string;
+};
+
+type PreviewDependencies = {
+  openPreview: (proposal: Proposal) => Promise<PreviewResult>;
+  refreshBuffer: (filePath: string) => Promise<void>;
+  closePreview: (toolCallId: string) => Promise<void>;
 };
 
 /** Suppress only proposals covered by the active request capability. */
@@ -65,7 +76,7 @@ function absolutePath(cwd: string, path: string): string {
  * This keeps preview semantics identical without changing the target file. */
 async function buildEditProposal(
   toolCallId: string,
-  input: EditToolInput,
+  input: PreviewEditInput,
   ctx: ExtensionContext,
 ): Promise<Proposal> {
   let oldContent: string | undefined;
@@ -95,6 +106,7 @@ async function buildEditProposal(
     filePath: absolutePath(ctx.cwd, input.path),
     oldContent,
     newContent,
+    unfoldedRanges: input.unfolded_ranges,
   };
 }
 
@@ -102,7 +114,7 @@ async function buildEditProposal(
  * Treat only a missing target as a new file with empty original contents. */
 async function buildWriteProposal(
   toolCallId: string,
-  input: WriteToolInput,
+  input: PreviewWriteInput,
   cwd: string,
 ): Promise<Proposal> {
   const filePath = absolutePath(cwd, input.path);
@@ -126,6 +138,7 @@ async function buildWriteProposal(
     filePath,
     oldContent,
     newContent: input.content,
+    unfoldedRanges: input.unfolded_ranges,
   };
 }
 
@@ -153,6 +166,7 @@ async function openPreview(proposal: Proposal): Promise<PreviewResult> {
         file_path: proposal.filePath,
         old_content: proposal.oldContent,
         new_content: proposal.newContent,
+        unfolded_ranges: proposal.unfoldedRanges,
       },
     ],
   );
@@ -185,7 +199,11 @@ async function closePreview(toolCallId: string): Promise<void> {
 
 /** Register proposal display and cleanup handlers around Pi tool execution.
  * Neovim remains display-only; Gotgenes independently owns approval. */
-export default function neovimDiffPreview(pi: ExtensionAPI): void {
+export function registerNeovimDiffPreview(
+  pi: ExtensionAPI,
+  dependencies: PreviewDependencies = { openPreview, refreshBuffer, closePreview },
+): void {
+  registerPreviewAwareMutationTools(pi);
   let active: ActivePreview | undefined;
 
   // Build and display edit/write proposals before later handlers run.
@@ -200,19 +218,25 @@ export default function neovimDiffPreview(pi: ExtensionAPI): void {
     if (shouldSuppressPreview(event.toolName, event.input.path)) return;
 
     try {
-      const proposal = isToolCallEventType("edit", event)
+      const proposal = isToolCallEventType<"edit", PreviewEditInput>("edit", event)
         ? await buildEditProposal(event.toolCallId, event.input, ctx)
-        : await buildWriteProposal(event.toolCallId, event.input, ctx.cwd);
-      const result = await openPreview(proposal);
+        : await buildWriteProposal(
+          event.toolCallId,
+          event.input as PreviewWriteInput,
+          ctx.cwd,
+        );
+      const result = await dependencies.openPreview(proposal);
       if (result.ok === false) {
         return { block: true, reason: formatPreviewFailure(result) };
       }
       active = { toolCallId: proposal.toolCallId };
     } catch (error) {
-      ctx.ui.notify(
-        `Pi diff preview unavailable: ${error instanceof Error ? error.message : String(error)}`,
-        "warning",
-      );
+      const message = `Pi diff preview unavailable: ${error instanceof Error ? error.message : String(error)}`;
+      ctx.ui.notify(message, "warning");
+      return {
+        block: true,
+        reason: `${message}. The edit/write call was not executed; correct the preview request or restore Neovim and retry.`,
+      };
     }
   });
 
@@ -229,7 +253,7 @@ export default function neovimDiffPreview(pi: ExtensionAPI): void {
 
     const filePath = absolutePath(ctx.cwd, event.input.path);
     try {
-      await refreshBuffer(filePath);
+      await dependencies.refreshBuffer(filePath);
     } catch (error) {
       ctx.ui.notify(
         `Neovim buffer refresh unavailable: ${error instanceof Error ? error.message : String(error)}`,
@@ -244,13 +268,15 @@ export default function neovimDiffPreview(pi: ExtensionAPI): void {
     if (!active || active.toolCallId !== event.toolCallId) return;
     const toolCallId = active.toolCallId;
     active = undefined;
-    void closePreview(toolCallId);
+    void dependencies.closePreview(toolCallId);
   });
 
   // Close any preview still waiting when this Pi process exits or reloads.
   // Clearing active state prevents later cleanup from targeting a stale call.
   pi.on("session_shutdown", () => {
-    if (active) void closePreview(active.toolCallId);
+    if (active) void dependencies.closePreview(active.toolCallId);
     active = undefined;
   });
 }
+
+export default registerNeovimDiffPreview;

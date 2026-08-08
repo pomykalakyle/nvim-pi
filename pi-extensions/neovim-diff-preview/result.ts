@@ -30,10 +30,24 @@ export function isPreviewResult(value: unknown): value is PreviewResult {
     && typeof result.viewport_rows === "number";
 }
 
-/** Explain how to resize an edit/write proposal after a live viewport rejection. */
+const RETRY_GUIDANCE: Record<string, string> = {
+  preview_change_not_visible:
+    "Expand unfolded_ranges so every changed hunk is fully visible, then retry.",
+  preview_invalid_request:
+    "Provide valid nonempty unfolded_ranges using 1-based inclusive proposed-file lines, then retry.",
+  preview_range_out_of_bounds:
+    "Correct unfolded_ranges using 1-based inclusive lines from the proposed file, then retry.",
+  preview_render_failed:
+    "The edit/write call was not executed. Restore the Neovim preview and retry.",
+};
+
+/** Return actionable model feedback for a rejected Neovim preview. */
 export function formatPreviewFailure(result: PreviewFailure): string {
+  const guidance = RETRY_GUIDANCE[result.reason];
+  if (guidance) return `${result.message}. ${guidance}`;
+
   const limit = typeof result.viewport_rows === "number"
     ? ` Each proposal must fit within the current ${result.viewport_rows}-row Neovim viewport.`
     : "";
-  return `${result.message}.${limit} Split the change into smaller edit/write calls and retry.`;
+  return `${result.message}.${limit} Tighten unfolded_ranges or split the change into smaller edit/write calls and retry.`;
 }

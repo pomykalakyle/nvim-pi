@@ -6,6 +6,21 @@ local editor = require("config.editor")
 
 local active_display = nil
 local preferred_layout = vim.g.pi_diff_preview_layout == "side_by_side" and "side_by_side" or "unified"
+local restored_window_options = {
+  "wrap",
+  "number",
+  "relativenumber",
+  "signcolumn",
+  "foldcolumn",
+  "foldenable",
+  "foldmethod",
+  "foldlevel",
+  "foldtext",
+  "diff",
+  "scrollbind",
+  "cursorbind",
+  "winbar",
+}
 
 ---Remember the selected layout for subsequent previews in this Neovim session.
 local function set_preferred_layout(layout)
@@ -24,6 +39,22 @@ local function is_valid_payload(payload)
       return false
     end
   end
+  if type(payload.unfolded_ranges) ~= "table" or #payload.unfolded_ranges == 0 then
+    return false
+  end
+  for _, range in ipairs(payload.unfolded_ranges) do
+    if
+      type(range) ~= "table"
+      or type(range.start_line) ~= "number"
+      or range.start_line % 1 ~= 0
+      or range.start_line < 1
+      or type(range.end_line) ~= "number"
+      or range.end_line % 1 ~= 0
+      or range.end_line < range.start_line
+    then
+      return false
+    end
+  end
   return true
 end
 
@@ -39,6 +70,209 @@ local function split_lines(text)
     table.remove(lines)
   end
   return #lines > 0 and lines or { "" }
+end
+
+---Load CodeDiff before accessing its internal computation and rendering modules.
+local function load_codediff_module(module_name)
+  local lazy_ok, lazy = pcall(require, "lazy")
+  if lazy_ok then
+    local loaded, load_error = pcall(lazy.load, { plugins = { "codediff.nvim" } })
+    if not loaded then
+      return nil, tostring(load_error)
+    end
+  end
+
+  local ok, module = pcall(require, module_name)
+  if not ok then
+    return nil, tostring(module)
+  end
+  return module, nil
+end
+
+---Sort proposed-file ranges and combine overlaps or gaps too small to fold.
+local function normalize_ranges(ranges, line_count)
+  local sorted = vim.deepcopy(ranges)
+  table.sort(sorted, function(left, right)
+    return left.start_line < right.start_line
+      or (left.start_line == right.start_line and left.end_line < right.end_line)
+  end)
+
+  local normalized = {}
+  for index, range in ipairs(sorted) do
+    if range.end_line > line_count then
+      return nil,
+        ("unfolded_ranges[%d] ends at proposed line %d, but the proposed file has %d lines"):format(
+          index,
+          range.end_line,
+          line_count
+        )
+    end
+
+    local current = normalized[#normalized]
+    -- A one-line fold occupies one row and Neovim will not create it, so show
+    -- that line by merging ranges separated by a single line.
+    if current and range.start_line <= current.end_line + 2 then
+      current.end_line = math.max(current.end_line, range.end_line)
+    else
+      normalized[#normalized + 1] = {
+        start_line = range.start_line,
+        end_line = range.end_line,
+      }
+    end
+  end
+
+  if normalized[1] and normalized[1].start_line == 2 then
+    normalized[1].start_line = 1
+  end
+  local last = normalized[#normalized]
+  if last and last.end_line == line_count - 1 then
+    last.end_line = line_count
+  end
+  return normalized
+end
+
+local function range_contains(ranges, start_line, end_line)
+  for _, range in ipairs(ranges) do
+    if range.start_line <= start_line and range.end_line >= end_line then
+      return true
+    end
+  end
+  return false
+end
+
+local function flags_to_ranges(flags, line_count)
+  local ranges = {}
+  local start_line = nil
+  for line = 1, line_count + 1 do
+    if line <= line_count and flags[line] then
+      start_line = start_line or line
+    elseif start_line then
+      ranges[#ranges + 1] = { start_line = start_line, end_line = line - 1 }
+      start_line = nil
+    end
+  end
+  return normalize_ranges(ranges, line_count)
+end
+
+---Validate that the requested proposed-file ranges expose every computed hunk.
+---Also map visible unchanged and changed lines onto the original buffer.
+local function build_visible_ranges(payload)
+  local original_lines = split_lines(payload.old_content)
+  local proposed_lines = split_lines(payload.new_content)
+  local proposed_ranges, range_error = normalize_ranges(payload.unfolded_ranges, #proposed_lines)
+  if not proposed_ranges then
+    return nil, { reason = "preview_range_out_of_bounds", message = range_error }
+  end
+
+  local diff_module, load_error = load_codediff_module("codediff.core.diff")
+  if not diff_module then
+    return nil,
+      {
+        reason = "preview_render_failed",
+        message = "failed to load CodeDiff: " .. load_error,
+      }
+  end
+  local diff_result = diff_module.compute_diff(original_lines, proposed_lines, {
+    max_computation_time_ms = 5000,
+    ignore_trim_whitespace = false,
+    compute_moves = false,
+  })
+  if not diff_result then
+    return nil,
+      {
+        reason = "preview_render_failed",
+        message = "CodeDiff failed to compute the preview",
+      }
+  end
+  if diff_result.hit_timeout == true then
+    return nil,
+      {
+        reason = "preview_render_failed",
+        message = "CodeDiff timed out before it could compute the complete preview",
+      }
+  end
+
+  local original_visible = {}
+  local proposed_visible = {}
+  for _, range in ipairs(proposed_ranges) do
+    for line = range.start_line, range.end_line do
+      proposed_visible[line] = true
+    end
+  end
+
+  local original_cursor = 1
+  local proposed_cursor = 1
+  for _, change in ipairs(diff_result.changes or {}) do
+    local original_boundary = change.original.start_line
+    local original_count = change.original.end_line - original_boundary
+    local proposed_boundary = change.modified.start_line
+    local proposed_count = change.modified.end_line - proposed_boundary
+
+    while original_cursor < original_boundary and proposed_cursor < proposed_boundary do
+      if proposed_visible[proposed_cursor] then
+        original_visible[original_cursor] = true
+      end
+      original_cursor = original_cursor + 1
+      proposed_cursor = proposed_cursor + 1
+    end
+
+    local visible_start
+    local visible_end
+    if proposed_count > 0 then
+      visible_start = proposed_boundary
+      visible_end = proposed_boundary + proposed_count - 1
+    else
+      -- CodeDiff anchors a pure deletion above the following proposed line.
+      -- A deletion at EOF is anchored to the final remaining display line.
+      visible_start = math.max(1, math.min(#proposed_lines, proposed_boundary))
+      visible_end = visible_start
+    end
+    if not range_contains(proposed_ranges, visible_start, visible_end) then
+      local description = proposed_count > 0 and ("changed proposed lines %d-%d"):format(visible_start, visible_end)
+        or ("the deletion anchored at proposed line %d"):format(visible_start)
+      return nil,
+        {
+          reason = "preview_change_not_visible",
+          message = ("unfolded_ranges do not fully contain %s"):format(description),
+        }
+    end
+
+    -- Side-by-side filler for a pure deletion is attached to the preceding
+    -- proposed line, while unified virtual lines use the following line.
+    if proposed_count == 0 and visible_start > 1 then
+      proposed_visible[visible_start - 1] = true
+    end
+
+    for line = original_boundary, original_boundary + original_count - 1 do
+      original_visible[line] = true
+    end
+    if original_count == 0 and #original_lines > 0 then
+      local anchor = math.max(1, math.min(#original_lines, original_boundary))
+      original_visible[anchor] = true
+    end
+
+    original_cursor = original_boundary + original_count
+    proposed_cursor = proposed_boundary + proposed_count
+  end
+
+  while original_cursor <= #original_lines and proposed_cursor <= #proposed_lines do
+    if proposed_visible[proposed_cursor] then
+      original_visible[original_cursor] = true
+    end
+    original_cursor = original_cursor + 1
+    proposed_cursor = proposed_cursor + 1
+  end
+
+  local original_ranges = flags_to_ranges(original_visible, #original_lines)
+  if not original_ranges or #original_ranges == 0 then
+    original_ranges = { { start_line = 1, end_line = 1 } }
+  end
+  local rendered_proposed_ranges = flags_to_ranges(proposed_visible, #proposed_lines)
+  return {
+    original = original_ranges,
+    proposed = rendered_proposed_ranges,
+    diff_result = diff_result,
+  }
 end
 
 ---Return whether a window belongs to the active Pi preview.
@@ -148,60 +382,33 @@ function M.refresh(file_path)
   return matched
 end
 
----Load CodeDiff's computation and inline-rendering modules on demand.
+---Load CodeDiff's inline renderer after the shared diff has been computed.
 local function load_inline_renderer()
-  local lazy_ok, lazy = pcall(require, "lazy")
-  if lazy_ok then
-    local loaded, load_error = pcall(lazy.load, { plugins = { "codediff.nvim" } })
-    if not loaded then
-      return nil, nil, tostring(load_error)
-    end
-  end
-
-  local diff_ok, diff_module = pcall(require, "codediff.core.diff")
-  if not diff_ok then
-    return nil, nil, tostring(diff_module)
-  end
-
-  local inline_ok, inline = pcall(require, "codediff.ui.inline")
-  if not inline_ok then
-    return nil, nil, tostring(inline)
-  end
-
-  return diff_module, inline, nil
+  local inline, load_error = load_codediff_module("codediff.ui.inline")
+  return inline, load_error
 end
 
----Remove CodeDiff decorations from the proposed preview buffer.
+---Remove the virtual lines and highlights added by CodeDiff.
+---The underlying proposed text stays untouched.
 local function clear_inline_preview(preview)
   if preview.inline_renderer and vim.api.nvim_buf_is_valid(preview.proposed_buf) then
     pcall(preview.inline_renderer.clear, preview.proposed_buf)
   end
 end
 
----Render the original-to-proposed change over the proposed preview buffer.
+---Annotate the proposed buffer with additions, changes, and virtual deleted lines.
+---This prepares the buffer for unified display but does not change any windows.
 local function render_inline_preview(preview)
-  local diff_module, inline, load_error = load_inline_renderer()
-  if not diff_module then
+  local inline, load_error = load_inline_renderer()
+  if not inline then
     error("failed to load CodeDiff: " .. load_error, 0)
   end
 
   local original_lines = vim.api.nvim_buf_get_lines(preview.before_buf, 0, -1, false)
   local proposed_lines = vim.api.nvim_buf_get_lines(preview.proposed_buf, 0, -1, false)
-  if not preview.inline_diff_result then
-    local result = diff_module.compute_diff(original_lines, proposed_lines, {
-      max_computation_time_ms = 5000,
-      ignore_trim_whitespace = false,
-      compute_moves = false,
-    })
-    if not result then
-      error("CodeDiff failed to compute the preview", 0)
-    end
-    preview.inline_diff_result = result
-  end
-
   inline.render_inline_diff(
     preview.proposed_buf,
-    preview.inline_diff_result,
+    preview.diff_result,
     original_lines,
     proposed_lines,
     { filetype = vim.bo[preview.proposed_buf].filetype }
@@ -209,7 +416,61 @@ local function render_inline_preview(preview)
   preview.inline_renderer = inline
 end
 
----Save or restore a view without changing the caller's current window.
+---Remove CodeDiff's side-by-side highlights, filler rows, and scroll binding.
+local function clear_side_by_side_preview(preview)
+  local lifecycle = load_codediff_module("codediff.ui.lifecycle")
+  if lifecycle then
+    for _, buf in ipairs({ preview.before_buf, preview.proposed_buf }) do
+      if buf and vim.api.nvim_buf_is_valid(buf) then
+        pcall(lifecycle.clear_highlights, buf)
+      end
+    end
+  end
+
+  local scroll = load_codediff_module("codediff.ui.scroll")
+  if scroll and preview.before_win and vim.api.nvim_win_is_valid(preview.before_win) then
+    pcall(scroll.teardown, vim.api.nvim_win_get_tabpage(preview.before_win))
+  end
+end
+
+---Render CodeDiff's paired-buffer highlights and virtual filler rows.
+local function render_side_by_side_preview(preview)
+  local core, core_error = load_codediff_module("codediff.ui.core")
+  if not core then
+    error("failed to load CodeDiff: " .. core_error, 0)
+  end
+
+  local original_lines = vim.api.nvim_buf_get_lines(preview.before_buf, 0, -1, false)
+  local proposed_lines = vim.api.nvim_buf_get_lines(preview.proposed_buf, 0, -1, false)
+  core.render_diff(preview.before_buf, preview.proposed_buf, original_lines, proposed_lines, preview.diff_result)
+end
+
+---Bind scrolling after folds have changed the two panes' visible structure.
+local function synchronize_side_by_side_preview(preview)
+  local scroll, scroll_error = load_codediff_module("codediff.ui.scroll")
+  if not scroll then
+    error("failed to load CodeDiff: " .. scroll_error, 0)
+  end
+  local tabpage = vim.api.nvim_win_get_tabpage(preview.proposed_win)
+  scroll.bind(tabpage, { preview.before_win, preview.proposed_win })
+  scroll.resync(tabpage, preview.proposed_win)
+end
+
+local function capture_window_options(win)
+  local options = {}
+  for _, name in ipairs(restored_window_options) do
+    options[name] = vim.wo[win][name]
+  end
+  return options
+end
+
+local function restore_window_options(win, options)
+  for name, value in pairs(options or {}) do
+    vim.wo[win][name] = value
+  end
+end
+
+---Capture a window's cursor and scroll state without moving focus to it.
 local function save_view(win)
   if not win or not vim.api.nvim_win_is_valid(win) then
     return nil
@@ -217,6 +478,7 @@ local function save_view(win)
   return vim.api.nvim_win_call(win, vim.fn.winsaveview)
 end
 
+---Restore a captured cursor and scroll state without moving focus.
 local function restore_view(win, view)
   if win and view and vim.api.nvim_win_is_valid(win) then
     pcall(vim.api.nvim_win_call, win, function()
@@ -225,42 +487,59 @@ local function restore_view(win, view)
   end
 end
 
----Turn off native diff mode without changing the caller's current window.
-local function diffoff(win)
-  if win and vim.api.nvim_win_is_valid(win) then
-    pcall(vim.api.nvim_win_call, win, function()
-      vim.cmd("diffoff")
-    end)
-  end
-end
-
----Apply preview-specific window options.
----The winbar identifies each side without making either buffer editable.
+---Mark and label a window as part of the active preview.
+---Buffer options enforce read-only behavior; these options control its presentation.
 local function configure_window(preview, win, label)
   vim.api.nvim_win_set_var(win, "pi_diff_preview", true)
   vim.wo[win].wrap = false
   vim.wo[win].number = true
   vim.wo[win].relativenumber = false
   vim.wo[win].signcolumn = "yes"
-  vim.wo[win].foldcolumn = "0"
-  vim.wo[win].foldenable = false
+  vim.wo[win].foldcolumn = "1"
+  vim.wo[win].diff = false
   vim.wo[win].winbar = (" Pi proposal: %s — %s "):format(preview.file_name, label)
 end
 
----Return the tallest fully expanded preview and its available viewport height.
----nvim_win_text_height includes CodeDiff's virtual deleted lines in unified mode.
+---Close every manual fold outside the model-selected visible ranges.
+---The complete scratch buffer remains available so the user can open any fold.
+local function apply_preview_folds(win, ranges)
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+
+  vim.api.nvim_win_call(win, function()
+    vim.wo.foldenable = true
+    vim.wo.foldmethod = "manual"
+    vim.wo.foldlevel = 0
+    vim.cmd("silent! normal! zE")
+
+    local line_count = vim.api.nvim_buf_line_count(0)
+    local next_line = 1
+    for _, range in ipairs(ranges) do
+      if range.start_line - next_line >= 2 then
+        vim.cmd(("silent! %d,%dfold"):format(next_line, range.start_line - 1))
+      end
+      next_line = range.end_line + 1
+    end
+    if line_count - next_line + 1 >= 2 then
+      vim.cmd(("silent! %d,%dfold"):format(next_line, line_count))
+    end
+    vim.cmd("silent! normal! zM")
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    vim.cmd("silent! normal! zt")
+  end)
+end
+
+---Return the rendered height of the tallest preview pane and its viewport.
+---nvim_win_text_height includes closed folds, diff filler, and virtual lines.
 local function preview_geometry(preview)
   local viewport_rows = nil
   local preview_rows = 0
   for _, win in ipairs({ preview.before_win, preview.proposed_win }) do
     if win and vim.api.nvim_win_is_valid(win) then
-      local buf = vim.api.nvim_win_get_buf(win)
-      local line_count = vim.api.nvim_buf_line_count(buf)
-      local rows = line_count
-      if preview.layout == "unified" then
-        local end_row = math.max(line_count - 1, 0)
-        rows = vim.api.nvim_win_text_height(win, { start_row = 0, end_row = end_row }).all
-      end
+      local line_count = vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(win))
+      local end_row = math.max(line_count - 1, 0)
+      local rows = vim.api.nvim_win_text_height(win, { start_row = 0, end_row = end_row }).all
       viewport_rows = math.min(viewport_rows or math.huge, vim.api.nvim_win_get_height(win))
       preview_rows = math.max(preview_rows, rows)
     end
@@ -268,9 +547,10 @@ local function preview_geometry(preview)
   return preview_rows, viewport_rows or 0
 end
 
----Show the proposal as Neovim's native two-window diff.
+---Show the proposal with CodeDiff's paired-buffer renderer.
 local function show_side_by_side(preview)
   clear_inline_preview(preview)
+  clear_side_by_side_preview(preview)
 
   vim.api.nvim_set_current_win(preview.before_win)
   vim.api.nvim_win_set_buf(preview.before_win, preview.before_buf)
@@ -281,27 +561,29 @@ local function show_side_by_side(preview)
   vim.api.nvim_win_set_buf(preview.proposed_win, preview.proposed_buf)
   configure_window(preview, preview.proposed_win, "Proposed")
 
-  vim.api.nvim_set_current_win(preview.before_win)
-  vim.cmd("diffthis")
-  vim.api.nvim_set_current_win(preview.proposed_win)
-  vim.cmd("diffthis")
-
+  render_side_by_side_preview(preview)
+  apply_preview_folds(preview.before_win, preview.visible_ranges.original)
+  apply_preview_folds(preview.proposed_win, preview.visible_ranges.proposed)
   restore_view(preview.before_win, preview.side_views and preview.side_views.before)
   restore_view(preview.proposed_win, preview.side_views and preview.side_views.proposed)
+  synchronize_side_by_side_preview(preview)
   preview.layout = "side_by_side"
 end
 
----Replace the native split with CodeDiff's unified inline rendering.
+---Collapse the two-window native diff into one annotated proposed buffer.
+---Rendering and layout changes stay separate so rendering failures leave the split intact.
 local function show_unified(preview)
+  clear_side_by_side_preview(preview)
   render_inline_preview(preview)
 
+  -- Preserve each side's position for a later switch back to side-by-side.
   preview.side_views = {
     before = save_view(preview.before_win),
     proposed = save_view(preview.proposed_win),
   }
-  diffoff(preview.before_win)
-  diffoff(preview.proposed_win)
 
+  -- The original window becomes the single preview window, so only the extra
+  -- proposed split needs to be closed.
   if preview.proposed_win and vim.api.nvim_win_is_valid(preview.proposed_win) then
     vim.api.nvim_win_close(preview.proposed_win, true)
   end
@@ -309,6 +591,7 @@ local function show_unified(preview)
 
   vim.api.nvim_win_set_buf(preview.before_win, preview.proposed_buf)
   configure_window(preview, preview.before_win, "Unified")
+  apply_preview_folds(preview.before_win, preview.visible_ranges.proposed)
   restore_view(preview.before_win, preview.unified_view)
   preview.layout = "unified"
 end
@@ -366,9 +649,8 @@ function M.close(tool_call_id)
   local preview = display.preview
   local restore = display.restore
 
-  diffoff(preview.before_win)
-  diffoff(preview.proposed_win)
   clear_inline_preview(preview)
+  clear_side_by_side_preview(preview)
 
   -- Close the extra split created by the side-by-side layout.
   if preview.proposed_win and vim.api.nvim_win_is_valid(preview.proposed_win) then
@@ -379,7 +661,7 @@ function M.close(tool_call_id)
   if preview.before_win and vim.api.nvim_win_is_valid(preview.before_win) then
     vim.api.nvim_win_set_var(preview.before_win, "pi_diff_preview", false)
     vim.api.nvim_win_set_buf(preview.before_win, restore.buf)
-    vim.wo[preview.before_win].winbar = restore.winbar
+    restore_window_options(preview.before_win, restore.options)
     restore_view(preview.before_win, restore.view)
   end
 
@@ -398,8 +680,13 @@ end
 ---Pi retains approval control while the editor displays both proposal versions.
 function M.open(payload)
   if not is_valid_payload(payload) then
-    vim.notify("Pi diff preview: invalid RPC payload", vim.log.levels.ERROR)
-    return false
+    local message = "Pi diff preview requires valid nonempty unfolded_ranges with start_line <= end_line"
+    vim.notify(message, vim.log.levels.ERROR)
+    return {
+      ok = false,
+      reason = "preview_invalid_request",
+      message = message,
+    }
   end
 
   local pi_terminal_win = require_pi_terminal_window()
@@ -412,11 +699,21 @@ function M.open(payload)
   -- Remove an older proposal before reusing the editor area.
   M.close()
 
+  local visible_ranges, visibility_error = build_visible_ranges(payload)
+  if not visible_ranges then
+    return {
+      ok = false,
+      reason = visibility_error.reason,
+      message = visibility_error.message,
+      file_path = payload.file_path,
+    }
+  end
+
   -- Remember the target window's state so M.close() can restore it later.
   local restore = {
     buf = vim.api.nvim_win_get_buf(target),
     view = vim.api.nvim_win_call(target, vim.fn.winsaveview),
-    winbar = vim.wo[target].winbar,
+    options = capture_window_options(target),
   }
   local basename = vim.fn.fnamemodify(payload.file_path, ":t")
   if basename == "" then
@@ -445,19 +742,32 @@ function M.open(payload)
       before_buf = preview_before_buf,
       proposed_buf = preview_proposed_buf,
       file_name = basename,
+      visible_ranges = visible_ranges,
+      diff_result = visible_ranges.diff_result,
       layout = "side_by_side",
     },
     restore = restore,
   }
 
-  if preferred_layout == "unified" then
-    show_unified(active_display.preview)
-  else
-    show_side_by_side(active_display.preview)
+  local displayed, display_error = pcall(function()
+    if preferred_layout == "unified" then
+      show_unified(active_display.preview)
+    else
+      show_side_by_side(active_display.preview)
+    end
+  end)
+  if not displayed then
+    M.close(payload.tool_call_id)
+    return {
+      ok = false,
+      reason = "preview_render_failed",
+      message = "CodeDiff failed to render the preview: " .. tostring(display_error),
+      file_path = payload.file_path,
+    }
   end
 
   local preview_rows, viewport_rows = preview_geometry(active_display.preview)
-  if vim.g.pi_diff_preview_enforce_fit ~= false and preview_rows > viewport_rows then
+  if preview_rows > viewport_rows then
     M.close(payload.tool_call_id)
     return {
       ok = false,

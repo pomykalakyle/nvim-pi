@@ -123,7 +123,7 @@ Registration uses Gotgenes' documented process-global permissions service and is
 
 `shared.ts` publishes an identity-guarded, process-local read-only service through `Symbol.for()`. `pi-extensions/neovim-diff-preview/index.ts` checks `shouldSuppressPreview(toolName, path)` before constructing or opening a proposal, so only operations covered by the active project-scoped capability skip display.
 
-Missing, stale, or throwing shared state fails safely to normal preview behavior. The service exposes no activation method, so the preview extension cannot grant authority.
+Missing, stale, or throwing shared state fails safely to normal preview behavior. The service exposes no activation method, so the preview extension cannot grant authority. Vibing Mode suppresses display and approval, but edit/write calls still provide the mandatory proposed-file `unfolded_ranges` used by the shared tool schema.
 
 ## Configuration
 

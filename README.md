@@ -8,7 +8,7 @@ The editor and agent share enough context to work together without pretending th
 
 ## What the integration does
 
-- Pi can display edit and write proposals as read-only Neovim diffs while approval stays in the terminal.
+- Pi can display edit and write proposals as read-only Neovim diffs while approval stays in the terminal. Every mutation names the proposed-file ranges to leave unfolded, and Neovim rejects previews that hide a change or do not fit.
 - Pi can focus a specific file range in the editor and dim everything outside it.
 - Each Git worktree gets its own Neovim tab, file browser, and Pi terminal context.
 - Small extensions handle things such as local prompt autocomplete, syntax highlighting, sounds, and request-scoped Vibing Mode.
