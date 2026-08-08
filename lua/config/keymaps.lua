@@ -8,7 +8,7 @@ require("config.colemak").setup()
 
 -- Toggle agent-applied file focus from either the editor or embedded Pi terminal.
 local pi_file_focus = require("config.pi.file_focus")
-vim.keymap.set({ "n", "i", "v", "t" }, "<F15>", pi_file_focus.toggle_current_tab, {
+vim.keymap.set({ "n", "i", "v", "t" }, "<F13>", pi_file_focus.toggle_current_tab, {
   silent = true,
   desc = "Pi: Toggle file focus",
 })

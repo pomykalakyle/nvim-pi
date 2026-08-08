@@ -2,13 +2,16 @@
 
 local M = {}
 
--- Keep the interactive terminal independent of later working-directory changes.
+-- Keep interactive terminals independent of later working-directory changes.
 local interactive_terminal = nil
+local terminals = {}
 
-local command = {
-  vim.fn.expand("~/.config/pi/launch.zsh"),
-  "--continue",
-}
+--- Builds the Pi command used for a normal continuation or one-time fork.
+local function terminal_command(arguments)
+  local command = { vim.fn.expand("~/.config/pi/launch.zsh") }
+  vim.list_extend(command, arguments or { "--continue" })
+  return command
+end
 
 --- Normalizes the project directory used to identify a Pi terminal.
 local function normalize_cwd(cwd)
@@ -16,9 +19,10 @@ local function normalize_cwd(cwd)
 end
 
 --- Returns the Snacks terminal options for an interactive Pi session.
-local function terminal_options(cwd)
+local function terminal_options(cwd, env)
   return {
     cwd = normalize_cwd(cwd),
+    env = env,
     interactive = true,
     auto_close = false,
     win = {
@@ -123,9 +127,17 @@ local function focus_terminal(terminal)
 end
 
 --- Opens and focuses the interactive Pi terminal for a project directory.
-function M.open(cwd)
-  local terminal, created = Snacks.terminal.get(command, terminal_options(cwd))
-  attach_terminal_keymaps(terminal)
+function M.open(cwd, arguments, env)
+  local root = normalize_cwd(cwd)
+  local terminal, created = terminals[root], false
+  if arguments and terminal and terminal:buf_valid() then
+    error("A Pi terminal already exists for this worktree")
+  end
+  if not (terminal and terminal:buf_valid()) then
+    terminal, created = Snacks.terminal.get(terminal_command(arguments), terminal_options(root, env))
+    terminals[root] = terminal
+    attach_terminal_keymaps(terminal)
+  end
   if not created then
     terminal:show()
   end
@@ -136,21 +148,28 @@ end
 
 --- Focuses the existing interactive Pi terminal without creating another one.
 function M.focus_existing()
-  if not (interactive_terminal and interactive_terminal:buf_valid()) then
+  local terminal = terminals[normalize_cwd()] or interactive_terminal
+  if not (terminal and terminal:buf_valid()) then
     return false
   end
-  if not interactive_terminal:win_valid() then
-    interactive_terminal:show()
+  if not terminal:win_valid() then
+    terminal:show()
   end
-  focus_terminal(interactive_terminal)
+  focus_terminal(terminal)
+  interactive_terminal = terminal
   return true
 end
 
 --- Toggles the interactive Pi terminal for the current project.
 function M.toggle()
-  local terminal, created = Snacks.terminal.get(command, terminal_options())
+  local root = normalize_cwd()
+  local terminal, created = terminals[root], false
+  if not (terminal and terminal:buf_valid()) then
+    terminal, created = Snacks.terminal.get(terminal_command(), terminal_options(root))
+    terminals[root] = terminal
+    attach_terminal_keymaps(terminal)
+  end
   interactive_terminal = terminal
-  attach_terminal_keymaps(terminal)
   if not created then
     terminal:toggle()
   end
@@ -164,23 +183,24 @@ function M.focus()
 end
 
 --- Stops the interactive Pi process for the current project.
-function M.stop()
-  local opts = terminal_options()
-  opts.create = false
-  local terminal = Snacks.terminal.get(command, opts)
-  if not terminal then
+function M.stop(cwd)
+  local root = normalize_cwd(cwd)
+  local terminal = terminals[root]
+  if not (terminal and terminal:buf_valid()) then
     return false
   end
   terminal:close()
+  terminals[root] = nil
+  if interactive_terminal == terminal then
+    interactive_terminal = nil
+  end
   return true
 end
 
 --- Reports whether the current project's Pi terminal is visible.
 function M.is_visible()
-  local opts = terminal_options()
-  opts.create = false
-  local terminal = Snacks.terminal.get(command, opts)
-  return terminal ~= nil and terminal:win_valid()
+  local terminal = terminals[normalize_cwd()]
+  return terminal ~= nil and terminal:buf_valid() and terminal:win_valid()
 end
 
 return M

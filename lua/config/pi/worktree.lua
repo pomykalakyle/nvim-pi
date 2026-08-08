@@ -5,6 +5,7 @@ local M = {}
 local editor = require("config.editor")
 local git_worktree = require("config.git_worktree")
 local tab_root_variable = "pi_worktree_root"
+local pending_handoffs = {}
 
 --- Returns the worktree assigned to a native Neovim tabpage.
 local function tab_worktree(tabpage)
@@ -103,6 +104,72 @@ function M.open_worktree(path)
   require("lazy").load({ plugins = { "snacks.nvim" } })
   require("config.pi.terminal").open(root)
   return true
+end
+
+--- Acknowledges that a handed-off Pi session finished starting.
+function M.acknowledge_handoff(token)
+  if type(token) ~= "string" or pending_handoffs[token] == nil then
+    return false
+  end
+  pending_handoffs[token] = true
+  return true
+end
+
+--- Opens a fork of an existing Pi session in a worktree context.
+function M.handoff(payload)
+  if type(payload) ~= "table" or type(payload.session_file) ~= "string" then
+    return { ok = false, error = "A Pi session file is required" }
+  end
+  if vim.fn.filereadable(payload.session_file) == 0 then
+    return { ok = false, error = "The Pi session file is unavailable" }
+  end
+
+  local root = git_worktree.root(payload.worktree)
+  if not root then
+    return { ok = false, error = "The selected worktree is unavailable" }
+  end
+
+  local previous_tab = vim.api.nvim_get_current_tabpage()
+  local existing_tab = find_worktree_tab(root)
+  local switched, err = M.switch_context(root)
+  if not switched then
+    return { ok = false, error = err }
+  end
+
+  local target_tab = vim.api.nvim_get_current_tabpage()
+  local token = vim.fn.sha256(payload.session_file .. tostring(vim.uv.hrtime()))
+  pending_handoffs[token] = false
+  local opened, terminal = pcall(require("config.pi.terminal").open, root, { "--session", payload.session_file }, {
+    PI_NVIM_HANDOFF_ID = token,
+  })
+  local open_err = terminal
+  if opened then
+    vim.wait(vim.g.pi_worktree_handoff_timeout_ms or 15000, function()
+      if pending_handoffs[token] then
+        return true
+      end
+      local job_id = terminal.buf and vim.b[terminal.buf].terminal_job_id or nil
+      return job_id and vim.fn.jobwait({ job_id }, 0)[1] ~= -1 or false
+    end, 10)
+    opened = pending_handoffs[token] == true
+    if not opened then
+      require("config.pi.terminal").stop(root)
+      open_err = "Pi did not acknowledge the worktree session startup"
+    end
+  end
+  pending_handoffs[token] = nil
+
+  if not opened then
+    if vim.api.nvim_tabpage_is_valid(previous_tab) then
+      vim.api.nvim_set_current_tabpage(previous_tab)
+    end
+    if not existing_tab and vim.api.nvim_tabpage_is_valid(target_tab) then
+      vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(target_tab))
+    end
+    return { ok = false, error = tostring(open_err) }
+  end
+
+  return { ok = true, worktree = root }
 end
 
 --- Opens the Snacks picker for worktrees in the active repository.

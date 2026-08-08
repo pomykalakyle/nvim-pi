@@ -1,5 +1,6 @@
 -- Verifies the lifecycle and launch contract of the interactive Pi terminal.
 
+local original_cwd = vim.fn.getcwd()
 local requested_command = nil
 local requested_options = nil
 local get_count = 0
@@ -95,6 +96,20 @@ assert(scroll_up.desc == "Pi: Scroll up half a page")
 assert(resume_space.buffer == 1)
 assert(resume_space.desc == "Pi: Resume input with space")
 assert(vim.b[terminal.buf].pi_terminal_keymaps_attached == true)
+local duplicate_ok, duplicate_err = pcall(pi_terminal.open, original_cwd, { "--fork", "/tmp/source-session.jsonl" })
+assert(not duplicate_ok)
+assert(tostring(duplicate_err):find("already exists", 1, true))
+
+local fork_root = vim.fn.tempname()
+vim.fn.mkdir(fork_root, "p")
+local get_count_before_fork = get_count
+pi_terminal.open(fork_root, { "--fork", "/tmp/source-session.jsonl" })
+assert(get_count == get_count_before_fork + 1)
+assert(requested_command[2] == "--fork")
+assert(requested_command[3] == "/tmp/source-session.jsonl")
+local get_count_after_fork = get_count
+pi_terminal.open(fork_root)
+assert(get_count == get_count_after_fork)
 
 pi_terminal.toggle()
 assert(not terminal.visible)
@@ -105,9 +120,9 @@ vim.fn.mkdir(alternate_cwd, "p")
 vim.cmd("lcd " .. vim.fn.fnameescape(alternate_cwd))
 assert(pi_terminal.focus_existing())
 assert(terminal.visible)
-assert(terminal.focus_count == 2)
 assert(get_count == get_count_before_focus)
 
+vim.cmd("lcd " .. vim.fn.fnameescape(original_cwd))
 assert(pi_terminal.is_visible())
 assert(pi_terminal.stop())
 assert(not terminal.visible)

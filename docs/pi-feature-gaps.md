@@ -12,10 +12,6 @@ The current integration owns one Pi terminal per project directory. It does not 
 
 There are no Neovim mappings dedicated to sending a visual selection or a selected tree file to Pi.
 
-### Managed worktree handoff
-
-`<leader>fw` can open an existing Git worktree in its own Neovim tabpage and open Pi in that directory. It does not create a branch and worktree from a natural-language request or fork the current Pi conversation into the new directory.
-
 ### Hands-Free Mode
 
 The former speech workflow has not been ported to Pi. Dictation and spoken submit, interrupt, approve, and reject controls are unavailable.
