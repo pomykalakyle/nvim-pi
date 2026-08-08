@@ -3,6 +3,7 @@ import {
   createWriteToolDefinition,
   type EditToolInput,
   type ExtensionAPI,
+  type ExtensionContext,
   type WriteToolInput,
 } from "@earendil-works/pi-coding-agent";
 import { Box, Container, Text } from "@earendil-works/pi-tui";
@@ -11,7 +12,8 @@ import { type Static, Type } from "typebox";
 const unfoldedRangeSchema = Type.Object({
   start_line: Type.Integer({
     minimum: 1,
-    description: "First visible line in the proposed file (1-based, inclusive).",
+    description:
+      "First visible line in the proposed file (1-based, inclusive).",
   }),
   end_line: Type.Integer({
     minimum: 1,
@@ -26,14 +28,18 @@ const unfoldedRangesSchema = Type.Array(unfoldedRangeSchema, {
 });
 
 export const previewEditSchema = Type.Object({
-  path: Type.String({ description: "Path to the file to edit (relative or absolute)." }),
+  path: Type.String({
+    description: "Path to the file to edit (relative or absolute).",
+  }),
   edits: Type.Array(
     Type.Object({
       oldText: Type.String({
         description:
           "Exact text for one targeted replacement. It must be unique in the original file and must not overlap another replacement.",
       }),
-      newText: Type.String({ description: "Replacement text for this targeted edit." }),
+      newText: Type.String({
+        description: "Replacement text for this targeted edit.",
+      }),
     }),
     {
       minItems: 1,
@@ -45,7 +51,9 @@ export const previewEditSchema = Type.Object({
 });
 
 export const previewWriteSchema = Type.Object({
-  path: Type.String({ description: "Path to the file to write (relative or absolute)." }),
+  path: Type.String({
+    description: "Path to the file to write (relative or absolute).",
+  }),
   content: Type.String({ description: "Content to write to the file." }),
   unfolded_ranges: unfoldedRangesSchema,
 });
@@ -65,12 +73,12 @@ function validateRangeOrder(args: unknown): void {
   if (!Array.isArray(ranges)) return;
   for (const [index, range] of ranges.entries()) {
     if (
-      range
-      && typeof range === "object"
-      && typeof (range as { start_line?: unknown }).start_line === "number"
-      && typeof (range as { end_line?: unknown }).end_line === "number"
-      && (range as { end_line: number }).end_line
-        < (range as { start_line: number }).start_line
+      range &&
+      typeof range === "object" &&
+      typeof (range as { start_line?: unknown }).start_line === "number" &&
+      typeof (range as { end_line?: unknown }).end_line === "number" &&
+      (range as { end_line: number }).end_line <
+        (range as { start_line: number }).start_line
     ) {
       throw new Error(
         `unfolded_ranges[${index}] must have end_line greater than or equal to start_line`,
@@ -83,6 +91,19 @@ export type TerminalDiffSelector = (
   toolName: "edit" | "write",
   path: string,
 ) => boolean;
+
+export type DeferredMutationResult = {
+  content: Array<{ type: "text"; text: string }>;
+  details: Record<string, unknown> | undefined;
+  terminate?: boolean;
+};
+
+export type DeferredMutationExecutor = (
+  toolCallId: string,
+  toolName: "edit" | "write",
+  input: PreviewEditInput | PreviewWriteInput,
+  ctx: ExtensionContext,
+) => Promise<DeferredMutationResult | undefined>;
 
 function terminalRendererMode(
   state: { terminalRenderer?: "compact" | "native" },
@@ -101,9 +122,13 @@ function terminalRendererMode(
   return state.terminalRenderer;
 }
 
-function renderCompactResult(result: { content: Array<{ type: string; text?: string }> }, theme: {
-  fg: (color: "error", text: string) => string;
-}, isError: boolean) {
+function renderCompactResult(
+  result: { content: Array<{ type: string; text?: string }> },
+  theme: {
+    fg: (color: "error", text: string) => string;
+  },
+  isError: boolean,
+) {
   if (!isError) return new Container();
   const message = result.content
     .filter((item) => item.type === "text")
@@ -116,6 +141,7 @@ function renderCompactResult(result: { content: Array<{ type: string; text?: str
 export function registerPreviewAwareMutationTools(
   pi: ExtensionAPI,
   showTerminalDiff: TerminalDiffSelector = () => false,
+  deferMutation?: DeferredMutationExecutor,
 ): void {
   const edit = createEditToolDefinition(process.cwd());
   pi.registerTool({
@@ -136,25 +162,33 @@ export function registerPreviewAwareMutationTools(
         args.path,
       );
       if (mode === "native") {
-        return edit.renderCall!(args, theme, {
+        if (!edit.renderCall)
+          throw new Error("Pi edit renderer is unavailable");
+        return edit.renderCall(args, theme, {
           ...context,
-          lastComponent: priorMode === "native" ? context.lastComponent : undefined,
+          lastComponent:
+            priorMode === "native" ? context.lastComponent : undefined,
         });
       }
-      const component = context.lastComponent instanceof Box && priorMode === "compact"
-        ? context.lastComponent
-        : new Box(1, 1, (text) => text);
+      const component =
+        context.lastComponent instanceof Box && priorMode === "compact"
+          ? context.lastComponent
+          : new Box(1, 1, (text) => text);
       component.clear();
-      component.addChild(new Text(
-        `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("muted", args.path)}`,
-        0,
-        0,
-      ));
+      component.addChild(
+        new Text(
+          `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("muted", args.path)}`,
+          0,
+          0,
+        ),
+      );
       return component;
     },
     renderResult(result, options, theme, context) {
       if (context.state.terminalRenderer === "native") {
-        return edit.renderResult!(
+        if (!edit.renderResult)
+          throw new Error("Pi edit result renderer is unavailable");
+        return edit.renderResult(
           result as Parameters<NonNullable<typeof edit.renderResult>>[0],
           options,
           theme,
@@ -169,12 +203,19 @@ export function registerPreviewAwareMutationTools(
         return prepared as PreviewEditInput;
       }
       validateRangeOrder(args);
-      const unfoldedRanges = args && typeof args === "object"
-        ? (args as { unfolded_ranges?: unknown }).unfolded_ranges
-        : undefined;
-      return { ...prepared, unfolded_ranges: unfoldedRanges } as PreviewEditInput;
+      const unfoldedRanges =
+        args && typeof args === "object"
+          ? (args as { unfolded_ranges?: unknown }).unfolded_ranges
+          : undefined;
+      return {
+        ...prepared,
+        unfolded_ranges: unfoldedRanges,
+      } as PreviewEditInput;
     },
     async execute(toolCallId, params, signal, onUpdate, ctx) {
+      const deferred = await deferMutation?.(toolCallId, "edit", params, ctx);
+      if (deferred) return deferred;
+
       const input: EditToolInput = { path: params.path, edits: params.edits };
       const runtimeTool = createEditToolDefinition(ctx.cwd);
       return runtimeTool.execute(toolCallId, input, signal, onUpdate, ctx);
@@ -187,7 +228,10 @@ export function registerPreviewAwareMutationTools(
     label: write.label,
     description: `${write.description} ${WRITE_RANGE_GUIDELINE}`,
     promptSnippet: write.promptSnippet,
-    promptGuidelines: [...(write.promptGuidelines ?? []), WRITE_RANGE_GUIDELINE],
+    promptGuidelines: [
+      ...(write.promptGuidelines ?? []),
+      WRITE_RANGE_GUIDELINE,
+    ],
     parameters: previewWriteSchema,
     renderCall(args, theme, context) {
       const priorMode = context.state.terminalRenderer;
@@ -199,14 +243,18 @@ export function registerPreviewAwareMutationTools(
         args.path,
       );
       if (mode === "native") {
-        return write.renderCall!(args, theme, {
+        if (!write.renderCall)
+          throw new Error("Pi write renderer is unavailable");
+        return write.renderCall(args, theme, {
           ...context,
-          lastComponent: priorMode === "native" ? context.lastComponent : undefined,
+          lastComponent:
+            priorMode === "native" ? context.lastComponent : undefined,
         });
       }
-      const component = context.lastComponent instanceof Text && priorMode === "compact"
-        ? context.lastComponent
-        : new Text("", 0, 0);
+      const component =
+        context.lastComponent instanceof Text && priorMode === "compact"
+          ? context.lastComponent
+          : new Text("", 0, 0);
       component.setText(
         `${theme.fg("toolTitle", theme.bold("write"))} ${theme.fg("muted", args.path)}`,
       );
@@ -214,7 +262,9 @@ export function registerPreviewAwareMutationTools(
     },
     renderResult(result, options, theme, context) {
       if (context.state.terminalRenderer === "native") {
-        return write.renderResult!(
+        if (!write.renderResult)
+          throw new Error("Pi write result renderer is unavailable");
+        return write.renderResult(
           result as Parameters<NonNullable<typeof write.renderResult>>[0],
           options,
           theme,
@@ -228,7 +278,13 @@ export function registerPreviewAwareMutationTools(
       return args as PreviewWriteInput;
     },
     async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const input: WriteToolInput = { path: params.path, content: params.content };
+      const deferred = await deferMutation?.(toolCallId, "write", params, ctx);
+      if (deferred) return deferred;
+
+      const input: WriteToolInput = {
+        path: params.path,
+        content: params.content,
+      };
       const runtimeTool = createWriteToolDefinition(ctx.cwd);
       return runtimeTool.execute(toolCallId, input, signal, onUpdate, ctx);
     },

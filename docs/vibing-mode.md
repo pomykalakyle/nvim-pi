@@ -7,7 +7,7 @@ Vibing Mode lets the user explicitly delegate code edits for one request without
 Normal review remains the default:
 
 ```text
-edit/write → Neovim read-only diff → Pi approval prompt
+edit/write → Neovim read-only pending proposal → review conversation → /proposal accept|reject
 ```
 
 When Vibing Mode is active for an eligible request:
@@ -107,11 +107,11 @@ pi-extensions/vibing-mode/
 
 ### Permission integration
 
-The Gotgenes configuration opts into the extension with:
+The Gotgenes configuration opts into Vibing Mode and the normal pending-proposal flow with:
 
 ```json
 {
-  "authorizerChain": ["vibing-mode"]
+  "authorizerChain": ["vibing-mode", "neovim-diff-preview"]
 }
 ```
 
@@ -123,7 +123,7 @@ Registration uses Gotgenes' documented process-global permissions service and is
 
 `shared.ts` publishes an identity-guarded, process-local read-only service through `Symbol.for()`. `pi-extensions/neovim-diff-preview/index.ts` checks `shouldSuppressPreview(toolName, path)` before constructing or opening a proposal, so only operations covered by the active project-scoped capability skip display.
 
-Missing, stale, or throwing shared state fails safely to normal preview behavior. The service exposes no activation method, so the preview extension cannot grant authority. Vibing Mode suppresses the Neovim preview and approval while retaining Pi's built-in terminal diff. Outside Vibing Mode, the terminal stays compact and the diff appears only in Neovim. Edit/write calls always provide the mandatory proposed-file `unfolded_ranges` used by the shared tool schema.
+Missing, stale, or throwing shared state fails safely to normal preview behavior. The service exposes no activation method, so the preview extension cannot grant authority. Vibing Mode suppresses the Neovim preview and pending-proposal flow while retaining Pi's built-in terminal diff and immediate mutation behavior. Outside Vibing Mode, the terminal stays compact, the diff appears only in Neovim, and the file remains unchanged until `/proposal accept`. Edit/write calls always provide the mandatory proposed-file `unfolded_ranges` used by the shared tool schema.
 
 ## Configuration
 
