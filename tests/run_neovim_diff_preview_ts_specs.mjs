@@ -9,6 +9,7 @@ const { createJiti } = await import(jitiUrl);
 const jiti = createJiti(import.meta.url, {
   alias: {
     "@earendil-works/pi-coding-agent": join(piRoot, "dist", "index.js"),
+    "@earendil-works/pi-tui": join(piRoot, "node_modules", "@earendil-works", "pi-tui", "dist", "index.js"),
     typebox: join(piRoot, "node_modules", "typebox", "build", "index.mjs"),
   },
 });

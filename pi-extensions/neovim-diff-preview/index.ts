@@ -203,7 +203,7 @@ export function registerNeovimDiffPreview(
   pi: ExtensionAPI,
   dependencies: PreviewDependencies = { openPreview, refreshBuffer, closePreview },
 ): void {
-  registerPreviewAwareMutationTools(pi);
+  registerPreviewAwareMutationTools(pi, shouldSuppressPreview);
   let active: ActivePreview | undefined;
 
   // Build and display edit/write proposals before later handlers run.

@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerNeovimDiffPreview } from "../pi-extensions/neovim-diff-preview/index.js";
+import {
+  publishVibingModeService,
+  unpublishVibingModeService,
+} from "../pi-extensions/vibing-mode/shared.js";
 
 const tools: Array<Record<string, unknown>> = [];
 const handlers = new Map<string, Function[]>();
@@ -135,6 +139,25 @@ try {
   assert(executionEnd);
   await executionEnd({ toolName: "edit", toolCallId: "accepted-edit" }, context);
   assert.deepEqual(closed, ["accepted-edit"]);
+
+  const vibingService = {
+    isActive: () => true,
+    snapshot: () => ({ active: true, requestId: 1, root: directory }),
+    shouldSuppressPreview: (toolName: string, toolPath: string) =>
+      toolName === "edit" && toolPath === "example.txt",
+  };
+  publishVibingModeService(vibingService);
+  const proposalBeforeVibing = capturedProposal;
+  try {
+    const vibingGate = await toolCall(
+      { toolName: "edit", toolCallId: "vibing-edit", input },
+      context,
+    );
+    assert.equal(vibingGate, undefined);
+    assert.equal(capturedProposal, proposalBeforeVibing);
+  } finally {
+    unpublishVibingModeService(vibingService);
+  }
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

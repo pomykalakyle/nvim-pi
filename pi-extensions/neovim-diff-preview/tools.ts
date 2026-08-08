@@ -5,6 +5,7 @@ import {
   type ExtensionAPI,
   type WriteToolInput,
 } from "@earendil-works/pi-coding-agent";
+import { Box, Container, Text } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
 
 const unfoldedRangeSchema = Type.Object({
@@ -78,8 +79,44 @@ function validateRangeOrder(args: unknown): void {
   }
 }
 
-/** Override Pi's mutation schemas while delegating execution to the built-in tools. */
-export function registerPreviewAwareMutationTools(pi: ExtensionAPI): void {
+export type TerminalDiffSelector = (
+  toolName: "edit" | "write",
+  path: string,
+) => boolean;
+
+function terminalRendererMode(
+  state: { terminalRenderer?: "compact" | "native" },
+  argsComplete: boolean,
+  selector: TerminalDiffSelector,
+  toolName: "edit" | "write",
+  path: unknown,
+): "compact" | "native" {
+  if (state.terminalRenderer) return state.terminalRenderer;
+  if (!argsComplete || typeof path !== "string") return "compact";
+  try {
+    state.terminalRenderer = selector(toolName, path) ? "native" : "compact";
+  } catch {
+    state.terminalRenderer = "compact";
+  }
+  return state.terminalRenderer;
+}
+
+function renderCompactResult(result: { content: Array<{ type: string; text?: string }> }, theme: {
+  fg: (color: "error", text: string) => string;
+}, isError: boolean) {
+  if (!isError) return new Container();
+  const message = result.content
+    .filter((item) => item.type === "text")
+    .map((item) => item.text ?? "")
+    .join("\n");
+  return new Text(theme.fg("error", message || "File mutation failed"), 0, 0);
+}
+
+/** Override Pi's mutation schemas and route their diffs to one visible surface. */
+export function registerPreviewAwareMutationTools(
+  pi: ExtensionAPI,
+  showTerminalDiff: TerminalDiffSelector = () => false,
+): void {
   const edit = createEditToolDefinition(process.cwd());
   pi.registerTool({
     name: "edit",
@@ -88,6 +125,44 @@ export function registerPreviewAwareMutationTools(pi: ExtensionAPI): void {
     promptSnippet: edit.promptSnippet,
     promptGuidelines: [...(edit.promptGuidelines ?? []), EDIT_RANGE_GUIDELINE],
     parameters: previewEditSchema,
+    renderShell: "self",
+    renderCall(args, theme, context) {
+      const priorMode = context.state.terminalRenderer;
+      const mode = terminalRendererMode(
+        context.state,
+        context.argsComplete,
+        showTerminalDiff,
+        "edit",
+        args.path,
+      );
+      if (mode === "native") {
+        return edit.renderCall!(args, theme, {
+          ...context,
+          lastComponent: priorMode === "native" ? context.lastComponent : undefined,
+        });
+      }
+      const component = context.lastComponent instanceof Box && priorMode === "compact"
+        ? context.lastComponent
+        : new Box(1, 1, (text) => text);
+      component.clear();
+      component.addChild(new Text(
+        `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("muted", args.path)}`,
+        0,
+        0,
+      ));
+      return component;
+    },
+    renderResult(result, options, theme, context) {
+      if (context.state.terminalRenderer === "native") {
+        return edit.renderResult!(
+          result as Parameters<NonNullable<typeof edit.renderResult>>[0],
+          options,
+          theme,
+          context,
+        );
+      }
+      return renderCompactResult(result, theme, context.isError);
+    },
     prepareArguments(args) {
       const prepared = edit.prepareArguments?.(args) ?? args;
       if (!prepared || typeof prepared !== "object") {
@@ -114,6 +189,40 @@ export function registerPreviewAwareMutationTools(pi: ExtensionAPI): void {
     promptSnippet: write.promptSnippet,
     promptGuidelines: [...(write.promptGuidelines ?? []), WRITE_RANGE_GUIDELINE],
     parameters: previewWriteSchema,
+    renderCall(args, theme, context) {
+      const priorMode = context.state.terminalRenderer;
+      const mode = terminalRendererMode(
+        context.state,
+        context.argsComplete,
+        showTerminalDiff,
+        "write",
+        args.path,
+      );
+      if (mode === "native") {
+        return write.renderCall!(args, theme, {
+          ...context,
+          lastComponent: priorMode === "native" ? context.lastComponent : undefined,
+        });
+      }
+      const component = context.lastComponent instanceof Text && priorMode === "compact"
+        ? context.lastComponent
+        : new Text("", 0, 0);
+      component.setText(
+        `${theme.fg("toolTitle", theme.bold("write"))} ${theme.fg("muted", args.path)}`,
+      );
+      return component;
+    },
+    renderResult(result, options, theme, context) {
+      if (context.state.terminalRenderer === "native") {
+        return write.renderResult!(
+          result as Parameters<NonNullable<typeof write.renderResult>>[0],
+          options,
+          theme,
+          context,
+        );
+      }
+      return renderCompactResult(result, theme, context.isError);
+    },
     prepareArguments(args) {
       validateRangeOrder(args);
       return args as PreviewWriteInput;
