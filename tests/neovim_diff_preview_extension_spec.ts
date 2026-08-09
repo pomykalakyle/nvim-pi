@@ -212,7 +212,9 @@ try {
   assert.deepEqual(wrongCallVerdict, { kind: "defer" });
 
   const edit = tools.find((tool) => tool.name === "edit");
+  const resolveProposal = tools.find((tool) => tool.name === "resolve_proposal");
   assert(edit && typeof edit.execute === "function");
+  assert(resolveProposal && typeof resolveProposal.execute === "function");
   const pendingResult = await (edit.execute as Function)(
     "pending-edit",
     input,
@@ -246,6 +248,7 @@ try {
   const scoped = beforeAgentStart({ systemPrompt: "base" }, context);
   assert(String(scoped.systemPrompt).includes("conversation is scoped"));
   assert(String(scoped.systemPrompt).includes("Do not run tests"));
+  assert(String(scoped.systemPrompt).includes("call resolve_proposal"));
 
   const blockedBash = await toolCall(
     {
@@ -320,16 +323,29 @@ try {
     { toolName: "edit", toolCallId: "rejected-edit" },
     context,
   );
-  await (proposalCommand.handler as Function)("reject", context);
+  const messagesBeforeVerbalRejection = sentMessages.length;
+  const rejectionResult = await (resolveProposal.execute as Function)(
+    "resolve-rejection",
+    { action: "reject" },
+    undefined,
+    undefined,
+    context,
+  );
   assert.equal(await readFile(path, "utf8"), "revised\n");
   assert.equal(statuses.at(-1), undefined);
-  assert(notifications.at(-1)?.includes("Rejected proposal"));
-  assert.equal(sentMessages.at(-1)?.message.content, "Proposal rejected.");
-  assert.deepEqual(sentMessages.at(-1)?.message.details, {
-    action: "rejected",
+  assert.deepEqual(rejectionResult.details, {
+    action: "reject",
     path: "example.txt",
-    toolName: "edit",
   });
+  assert.equal(sentMessages.length, messagesBeforeVerbalRejection);
+  const noProposalResult = await (resolveProposal.execute as Function)(
+    "resolve-without-proposal",
+    { action: "reject" },
+    undefined,
+    undefined,
+    context,
+  );
+  assert.equal(noProposalResult.details, undefined);
   assert.equal(
     await toolCall(
       {
@@ -361,11 +377,20 @@ try {
     { toolName: "edit", toolCallId: "accepted-edit" },
     context,
   );
-  await (proposalCommand.handler as Function)("accept", context);
+  const acceptanceResult = await (resolveProposal.execute as Function)(
+    "resolve-acceptance",
+    { action: "accept" },
+    undefined,
+    undefined,
+    context,
+  );
   assert.equal(await readFile(path, "utf8"), "after\n");
   assert.deepEqual(refreshed, [path, path]);
   assert(closed.includes("accepted-edit"));
-  assert(notifications.at(-1)?.includes("Accepted proposal"));
+  assert.deepEqual(acceptanceResult.details, {
+    action: "accept",
+    path: "example.txt",
+  });
 
   const write = tools.find((tool) => tool.name === "write");
   assert(write && typeof write.execute === "function");

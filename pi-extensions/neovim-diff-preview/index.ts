@@ -16,6 +16,7 @@ import type {
   PromptPermissionDetails,
 } from "@gotgenes/pi-permission-system";
 import { attach } from "neovim";
+import { Type } from "typebox";
 import { getVibingModeService } from "../vibing-mode/shared.js";
 import {
   formatPreviewFailure,
@@ -78,7 +79,7 @@ type ActivePreview = {
   toolCallId: string;
 };
 
-type PreviewDependencies = {
+type NvimOperations = {
   openPreview: (proposal: Proposal) => Promise<PreviewResult>;
   refreshBuffer: (filePath: string) => Promise<void>;
   closePreview: (toolCallId: string) => Promise<void>;
@@ -426,7 +427,7 @@ function restorePendingProposal(ctx: ExtensionContext): Proposal | undefined {
 /** Register conversational edit/write proposals around Pi's real tools. */
 export function registerNeovimDiffPreview(
   pi: ExtensionAPI,
-  dependencies: PreviewDependencies = {
+  nvimOperations: NvimOperations = {
     openPreview,
     refreshBuffer,
     closePreview,
@@ -463,7 +464,7 @@ export function registerNeovimDiffPreview(
     if (!proposal) return false;
     active = undefined;
     try {
-      const result = await dependencies.openPreview(proposal);
+      const result = await nvimOperations.openPreview(proposal);
       if (!result.ok) return false;
       active = { toolCallId: proposal.toolCallId };
       return true;
@@ -479,7 +480,7 @@ export function registerNeovimDiffPreview(
     candidate = undefined;
     active = undefined;
     stopAfterProposal = false;
-    if (priorActive) await dependencies.closePreview(priorActive.toolCallId);
+    if (priorActive) await nvimOperations.closePreview(priorActive.toolCallId);
 
     pending = restorePendingProposal(ctx);
     if (pending && resolve(ctx.cwd) !== resolve(pending.cwd)) {
@@ -638,11 +639,11 @@ export function registerNeovimDiffPreview(
       active = undefined;
       persistPending();
       setStatus(ctx);
-      await dependencies.closePreview(resolved.toolCallId);
+      await nvimOperations.closePreview(resolved.toolCallId);
 
       if (action === "accept") {
         try {
-          await dependencies.refreshBuffer(resolved.filePath);
+          await nvimOperations.refreshBuffer(resolved.filePath);
         } catch (error) {
           ctx.ui.notify(
             `The proposal was accepted, but Neovim could not refresh the file: ${error instanceof Error ? error.message : String(error)}`,
@@ -674,9 +675,55 @@ export function registerNeovimDiffPreview(
     },
   });
 
+  pi.registerTool({
+    name: "resolve_proposal",
+    label: "Resolve proposal",
+    description:
+      "Accept or reject the pending file proposal. Use only when the user clearly asks to accept/apply or reject/discard it.",
+    parameters: Type.Object({
+      action: Type.Union([Type.Literal("accept"), Type.Literal("reject")]),
+    }),
+    async execute(_toolCallId, input, _signal, _onUpdate, ctx) {
+      const resolved = pending;
+      if (!resolved) {
+        return {
+          content: [{ type: "text", text: "There is no pending proposal." }],
+          details: undefined,
+        };
+      }
+      if (input.action === "accept") {
+        // Only apply content that still has its exact reviewed diff visible.
+        if (active?.toolCallId !== resolved.toolCallId) {
+          throw new Error("The pending proposal has no active Neovim diff.");
+        }
+        await applyProposal(resolved);
+      }
+
+      // Both outcomes finish the review and clear its persisted UI state.
+      pending = undefined;
+      candidate = undefined;
+      active = undefined;
+      persistPending();
+      setStatus(ctx);
+      await nvimOperations.closePreview(resolved.toolCallId);
+
+      // Accepted content is now on disk, so refresh its loaded editor buffer.
+      if (input.action === "accept") await nvimOperations.refreshBuffer(resolved.filePath);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Proposal ${input.action === "accept" ? "accepted" : "rejected"}: ${resolved.inputPath}`,
+          },
+        ],
+        details: { action: input.action, path: resolved.inputPath },
+      };
+    },
+  });
+
   pi.on("session_start", async (_event, ctx) => {
     try {
-      await dependencies.reloadPreview?.();
+      await nvimOperations.reloadPreview?.();
     } catch (error) {
       ctx.ui.notify(
         `Pi diff preview could not reload its Neovim runtime: ${error instanceof Error ? error.message : String(error)}`,
@@ -694,7 +741,7 @@ export function registerNeovimDiffPreview(
   pi.on("before_agent_start", (event) => {
     if (!pending) return;
     return {
-      systemPrompt: `${event.systemPrompt}\n\nA file proposal is pending for ${pending.inputPath}. The file on disk is still unchanged. This conversation is scoped to reviewing that proposal, but answer any codebase questions the user needs in order to evaluate it. You may read and search freely. Use edit or write only on that same path to replace the proposal in place. Do not run tests, bash commands, or unrelated mutations until the user accepts or rejects the proposal.`,
+      systemPrompt: `${event.systemPrompt}\n\nA file proposal is pending for ${pending.inputPath}. The file on disk is still unchanged. This conversation is scoped to reviewing that proposal, but answer any codebase questions the user needs in order to evaluate it. You may read and search freely. Use edit or write only on that same path to replace the proposal in place. Do not run tests, bash commands, or unrelated mutations until the user accepts or rejects the proposal. If the user clearly accepts or rejects it in conversation, call resolve_proposal with that action; do not infer resolution from ambiguous feedback.`,
     };
   });
 
@@ -749,7 +796,7 @@ export function registerNeovimDiffPreview(
             ctx.cwd,
           );
       active = undefined;
-      const result = await dependencies.openPreview(proposal);
+      const result = await nvimOperations.openPreview(proposal);
       if (result.ok === false) {
         await restorePreview(previous);
         return { block: true, reason: formatPreviewFailure(result) };
@@ -787,7 +834,7 @@ export function registerNeovimDiffPreview(
 
     const filePath = absolutePath(ctx.cwd, event.input.path);
     try {
-      await dependencies.refreshBuffer(filePath);
+      await nvimOperations.refreshBuffer(filePath);
     } catch (error) {
       ctx.ui.notify(
         `Neovim buffer refresh unavailable: ${error instanceof Error ? error.message : String(error)}`,
@@ -807,12 +854,12 @@ export function registerNeovimDiffPreview(
         : undefined;
     candidate = undefined;
     active = undefined;
-    await dependencies.closePreview(event.toolCallId);
+    await nvimOperations.closePreview(event.toolCallId);
     await restorePreview(staged?.previous);
   });
 
   pi.on("session_shutdown", async () => {
-    if (active) await dependencies.closePreview(active.toolCallId);
+    if (active) await nvimOperations.closePreview(active.toolCallId);
     candidate = undefined;
     active = undefined;
     unsubscribePermissionsReady();

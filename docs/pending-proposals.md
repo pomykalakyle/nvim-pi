@@ -25,6 +25,8 @@ Tests and Bash commands are also blocked while review is pending. The reviewed c
 /proposal reject
 ```
 
+You can also clearly tell the agent to accept/apply or reject/discard the pending proposal. The agent resolves it through the same guarded flow. Ambiguous feedback does not resolve a proposal.
+
 `accept` writes the latest proposed contents only when the file still matches the snapshot used to build the proposal. If the file changed in the meantime, acceptance fails and the proposal remains pending so the model can revise it against the current file. After a successful acceptance, the command tells the agent what happened and triggers its next turn.
 
 `reject` discards the proposal without changing the file, tells the agent it was rejected, and triggers the agent's next turn.
