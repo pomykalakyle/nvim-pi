@@ -641,8 +641,8 @@ export function registerNeovimDiffPreview(
           customType: "nvim-pi-proposal-resolution",
           content:
             action === "accept"
-              ? `The user accepted the pending proposal for ${resolved.inputPath}. The change is now applied. Acknowledge the resolution and continue from the accepted state; run relevant verification if appropriate.`
-              : `The user rejected the pending proposal for ${resolved.inputPath}. No proposed change was applied. Acknowledge the resolution and wait for new direction.`,
+              ? "Proposal accepted."
+              : "Proposal rejected.",
           display: true,
           details: {
             action: resolution,

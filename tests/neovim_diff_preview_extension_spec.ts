@@ -293,7 +293,7 @@ try {
   assert.equal(await readFile(path, "utf8"), "revised\n");
   assert(closed.includes("revised-edit"));
   assert.equal(sentMessages.at(-1)?.message.customType, "nvim-pi-proposal-resolution");
-  assert(String(sentMessages.at(-1)?.message.content).includes("accepted"));
+  assert.equal(sentMessages.at(-1)?.message.content, "Proposal accepted.");
   assert.deepEqual(sentMessages.at(-1)?.options, { triggerTurn: true });
 
   const rejectionInput = {
@@ -319,7 +319,7 @@ try {
   assert.equal(await readFile(path, "utf8"), "revised\n");
   assert.equal(statuses.at(-1), undefined);
   assert(notifications.at(-1)?.includes("Rejected proposal"));
-  assert(String(sentMessages.at(-1)?.message.content).includes("rejected"));
+  assert.equal(sentMessages.at(-1)?.message.content, "Proposal rejected.");
   assert.deepEqual(sentMessages.at(-1)?.message.details, {
     action: "rejected",
     path: "example.txt",
