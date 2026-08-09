@@ -25,9 +25,9 @@ Tests and Bash commands are also blocked while review is pending. The reviewed c
 /proposal reject
 ```
 
-`accept` writes the latest proposed contents only when the file still matches the snapshot used to build the proposal. If the file changed in the meantime, acceptance fails and the proposal remains pending so the model can revise it against the current file.
+`accept` writes the latest proposed contents only when the file still matches the snapshot used to build the proposal. If the file changed in the meantime, acceptance fails and the proposal remains pending so the model can revise it against the current file. After a successful acceptance, the command tells the agent what happened and triggers its next turn.
 
-`reject` discards the proposal without changing the file.
+`reject` discards the proposal without changing the file, tells the agent it was rejected, and triggers the agent's next turn.
 
 The footer shows the pending filename and both commands until the proposal is resolved.
 

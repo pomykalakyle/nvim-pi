@@ -24,6 +24,10 @@ const handlers = new Map<string, Function[]>();
 const commands = new Map<string, Record<string, unknown>>();
 const eventHandlers = new Map<string, Function>();
 const entries: Array<Record<string, unknown>> = [];
+const sentMessages: Array<{
+  message: Record<string, unknown>;
+  options: Record<string, unknown>;
+}> = [];
 let authorizer: Function | undefined;
 
 registry[serviceKey] = {
@@ -45,6 +49,12 @@ const pi = {
   },
   appendEntry(customType: string, data: unknown) {
     entries.push({ type: "custom", customType, data });
+  },
+  sendMessage(
+    message: Record<string, unknown>,
+    options: Record<string, unknown>,
+  ) {
+    sentMessages.push({ message, options });
   },
   events: {
     on(event: string, handler: Function) {
@@ -282,6 +292,9 @@ try {
   await (proposalCommand.handler as Function)("accept", context);
   assert.equal(await readFile(path, "utf8"), "revised\n");
   assert(closed.includes("revised-edit"));
+  assert.equal(sentMessages.at(-1)?.message.customType, "nvim-pi-proposal-resolution");
+  assert(String(sentMessages.at(-1)?.message.content).includes("accepted"));
+  assert.deepEqual(sentMessages.at(-1)?.options, { triggerTurn: true });
 
   const rejectionInput = {
     ...input,
@@ -306,6 +319,12 @@ try {
   assert.equal(await readFile(path, "utf8"), "revised\n");
   assert.equal(statuses.at(-1), undefined);
   assert(notifications.at(-1)?.includes("Rejected proposal"));
+  assert(String(sentMessages.at(-1)?.message.content).includes("rejected"));
+  assert.deepEqual(sentMessages.at(-1)?.message.details, {
+    action: "rejected",
+    path: "example.txt",
+    toolName: "edit",
+  });
   assert.equal(
     await toolCall(
       {
