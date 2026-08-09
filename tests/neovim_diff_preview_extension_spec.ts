@@ -73,6 +73,7 @@ let capturedProposal: Record<string, unknown> | undefined;
 let previewOutcome: "reject" | "throw" | "success" = "reject";
 const refreshed: string[] = [];
 const closed: string[] = [];
+let previewReloads = 0;
 registerNeovimDiffPreview(pi, {
   async openPreview(proposal) {
     if (previewOutcome === "throw") throw new Error("Neovim RPC disconnected");
@@ -98,6 +99,9 @@ registerNeovimDiffPreview(pi, {
   },
   async closePreview(toolCallId) {
     closed.push(toolCallId);
+  },
+  async reloadPreview() {
+    previewReloads++;
   },
 });
 
@@ -153,6 +157,7 @@ try {
   };
 
   await sessionStart({ reason: "startup" }, context);
+  assert.equal(previewReloads, 1);
   assert(authorizer);
 
   const rejectedPreview = await toolCall(

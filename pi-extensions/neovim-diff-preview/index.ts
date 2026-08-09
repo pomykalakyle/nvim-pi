@@ -82,6 +82,7 @@ type PreviewDependencies = {
   openPreview: (proposal: Proposal) => Promise<PreviewResult>;
   refreshBuffer: (filePath: string) => Promise<void>;
   closePreview: (toolCallId: string) => Promise<void>;
+  reloadPreview?: () => Promise<void>;
 };
 
 type AuthorizerService = Pick<PermissionsService, "registerAuthorizer">;
@@ -243,6 +244,23 @@ async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
   } finally {
     await nvim.close();
   }
+}
+
+/** Reload the Lua preview module after Pi's extension runtime reloads. */
+async function reloadPreview(): Promise<void> {
+  await callNeovim(
+    `
+      local name = "config.pi.diff_preview"
+      local loaded = package.loaded[name]
+      if loaded and type(loaded.close) == "function" then
+        pcall(loaded.close)
+      end
+      package.loaded[name] = nil
+      require(name)
+      return true
+    `,
+    [],
+  );
 }
 
 /** Send one proposal directly as structured MessagePack-RPC arguments. */
@@ -412,6 +430,7 @@ export function registerNeovimDiffPreview(
     openPreview,
     refreshBuffer,
     closePreview,
+    reloadPreview,
   },
 ): void {
   let pending: Proposal | undefined;
@@ -656,6 +675,14 @@ export function registerNeovimDiffPreview(
   });
 
   pi.on("session_start", async (_event, ctx) => {
+    try {
+      await dependencies.reloadPreview?.();
+    } catch (error) {
+      ctx.ui.notify(
+        `Pi diff preview could not reload its Neovim runtime: ${error instanceof Error ? error.message : String(error)}`,
+        "warning",
+      );
+    }
     await synchronizeSessionProposal(ctx);
     registerAuthorizer();
   });
