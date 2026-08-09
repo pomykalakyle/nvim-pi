@@ -690,14 +690,16 @@ function M.open(payload)
   end
 
   local pi_terminal_win = require_pi_terminal_window()
+
+  -- Restore the editor window hidden by an older proposal before selecting the
+  -- target for its replacement. Active preview windows are intentionally not
+  -- eligible review targets.
+  M.close()
   local target = find_review_target()
   if not target then
     vim.notify("Pi diff preview: no normal editor window is available", vim.log.levels.ERROR)
     return false
   end
-
-  -- Remove an older proposal before reusing the editor area.
-  M.close()
 
   local visible_ranges, visibility_error = build_visible_ranges(payload)
   if not visible_ranges then

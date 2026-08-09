@@ -431,6 +431,26 @@ assert(#preview_windows() == 0)
 assert(vim.api.nvim_win_get_buf(original_win) == original_buf)
 assert(vim.api.nvim_get_current_win() == pi_terminal_win)
 
+-- Replacing an active proposal first restores its editor window, then reuses it.
+assert(preview.open(payload))
+if #preview_windows() == 1 then
+  assert(preview.toggle_layout() == nil)
+end
+assert(#preview_windows() == 2)
+local replaced_before_buf = vim.api.nvim_win_get_buf(assert(find_preview_window("/original/")))
+local replacement_payload = vim.deepcopy(payload)
+replacement_payload.tool_call_id = "replacement-preview"
+replacement_payload.new_content = 'local value = "replacement"\nlocal second = true\n'
+local replacement_result = preview.open(replacement_payload)
+assert(replacement_result.ok, vim.inspect(replacement_result))
+assert(#preview_windows() >= 1)
+assert(not vim.api.nvim_buf_is_valid(replaced_before_buf))
+local replacement_proposed_win = assert(find_preview_window("/proposed/"))
+local replacement_proposed_buf = vim.api.nvim_win_get_buf(replacement_proposed_win)
+assert(vim.api.nvim_buf_get_lines(replacement_proposed_buf, 0, 1, false)[1] == 'local value = "replacement"')
+assert(preview.close("replacement-preview"))
+assert(vim.api.nvim_win_get_buf(original_win) == original_buf)
+
 vim.b[pi_terminal_buf].pi_terminal = false
 local opened_without_pi, missing_pi_error = pcall(preview.open, payload)
 assert(opened_without_pi == false)
