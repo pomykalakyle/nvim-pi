@@ -28,13 +28,44 @@ return {
         desc = "Pi: Focus",
       },
       {
+        "<leader>ca",
+        --- Creates a fresh conversation in the current worktree.
+        function()
+          require("config.pi.terminal").create_session(nil, {})
+        end,
+        desc = "Pi: Add session",
+      },
+      {
         "<leader>cx",
-        --- Stops the interactive Pi terminal process.
+        --- Stops the active conversation and selects a neighboring session.
         function()
           require("config.pi.terminal").stop()
         end,
-        desc = "Pi: Stop",
+        desc = "Pi: Close session",
       },
+      {
+        "<leader>cn",
+        function()
+          require("config.pi.terminal").cycle_session(1)
+        end,
+        desc = "Pi: Next session",
+      },
+      {
+        "<leader>ce",
+        function()
+          require("config.pi.terminal").cycle_session(-1)
+        end,
+        desc = "Pi: Previous session",
+      },
+      unpack(vim.tbl_map(function(index)
+        return {
+          "<leader>c" .. index,
+          function()
+            require("config.pi.terminal").switch_to_session(index)
+          end,
+          desc = "Pi: Session " .. index,
+        }
+      end, vim.fn.range(1, 9))),
     },
   },
 
@@ -64,13 +95,14 @@ return {
     },
   },
 
-  -- Reserve <leader>cc for Pi instead of LazyVim's LSP code-action mapping.
+  -- Reserve Pi's conversation shortcuts instead of LazyVim's LSP mappings.
   {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
         ["*"] = {
           keys = {
+            { "<leader>ca", false },
             { "<leader>cc", false },
           },
         },

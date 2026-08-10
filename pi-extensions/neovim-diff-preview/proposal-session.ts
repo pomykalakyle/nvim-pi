@@ -86,7 +86,6 @@ export function registerProposalSession(
   let pending: Proposal | undefined;
   let candidate: CandidateProposal | undefined;
   let active: ActivePreview | undefined;
-  let stopAfterProposal = false;
   let registeredPermissions: AuthorizerService | undefined;
   let disposeAuthorizer: (() => void) | undefined;
 
@@ -191,7 +190,6 @@ export function registerProposalSession(
     const priorActive = active;
     candidate = undefined;
     active = undefined;
-    stopAfterProposal = false;
     if (priorActive) await nvimOperations.closePreview(priorActive.toolCallId);
 
     pending = restorePendingProposal(ctx);
@@ -281,7 +279,6 @@ export function registerProposalSession(
         return undefined;
       pending = candidate.proposal;
       candidate = undefined;
-      stopAfterProposal = true;
       persistPending();
 
       // Persist first so choosing Talk can hand the same proposal to conversation.
@@ -465,12 +462,6 @@ export function registerProposalSession(
     return {
       systemPrompt: `${event.systemPrompt}\n\nA file proposal is pending for ${pending.inputPath}. The file on disk is still unchanged. This conversation is scoped to reviewing that proposal, but answer any codebase questions the user needs in order to evaluate it. You may read and search freely. Use edit or write only on that same path to replace the proposal in place. Do not run tests, bash commands, or unrelated mutations until the user accepts or rejects the proposal. If the user clearly accepts or rejects it in conversation, call resolve_proposal with that action; do not infer resolution from ambiguous feedback.`,
     };
-  });
-
-  pi.on("turn_end", (_event, ctx) => {
-    if (!stopAfterProposal) return;
-    stopAfterProposal = false;
-    ctx.abort();
   });
 
   // Build and display edit/write proposals before the permission system runs.

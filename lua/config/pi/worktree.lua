@@ -21,6 +21,11 @@ local function active_worktree()
   return tab_worktree(vim.api.nvim_get_current_tabpage()) or git_worktree.root(vim.fn.getcwd())
 end
 
+--- Returns the worktree assigned to the current native tabpage.
+function M.active_root()
+  return active_worktree()
+end
+
 --- Opens Neo-tree at a new worktree tab's root without changing focus.
 local function open_neo_tree(root)
   editor.with_preserved_focus(function()

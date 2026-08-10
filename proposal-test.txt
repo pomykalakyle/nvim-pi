@@ -5,3 +5,4 @@ This second change tests whether accepting a proposal wakes the agent.
 This third change tests the simplified resolution message.
 This fourth change tests the standard review lifecycle.
 This fifth change tests a consecutive proposal.
+This sixth change tests acceptance without a turn-end abort.

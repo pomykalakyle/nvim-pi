@@ -117,15 +117,14 @@ const toolResult = handlers.get("tool_result")?.[0];
 const executionEnd = handlers.get("tool_execution_end")?.[0];
 const sessionStart = handlers.get("session_start")?.[0];
 const sessionTree = handlers.get("session_tree")?.[0];
-const turnEnd = handlers.get("turn_end")?.[0];
 const beforeAgentStart = handlers.get("before_agent_start")?.[0];
+assert.equal(handlers.get("turn_end"), undefined);
 assert(
   toolCall &&
     toolResult &&
     executionEnd &&
     sessionStart &&
     sessionTree &&
-    turnEnd &&
     beforeAgentStart,
 );
 
@@ -141,7 +140,6 @@ try {
   };
   const notifications: string[] = [];
   let reviewPrompts = 0;
-  let aborts = 0;
   const context = {
     cwd: directory,
     mode: "tui",
@@ -161,7 +159,7 @@ try {
       },
     },
     abort() {
-      aborts++;
+      throw new Error("Proposal review must not abort the agent loop.");
     },
     async waitForIdle() {},
   };
@@ -239,8 +237,6 @@ try {
   assert.equal(pendingResult.terminate, true);
   assert.equal(reviewPrompts, 1);
   assert(String(pendingResult.content[0].text).includes("has not changed"));
-  await turnEnd({}, context);
-  assert.equal(aborts, 1);
 
   await toolResult(
     {
