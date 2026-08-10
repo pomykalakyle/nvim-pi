@@ -25,7 +25,7 @@ return {
       function()
         require("config.pi.worktree").pick()
       end,
-      desc = "Worktrees",
+      desc = "Conversations",
     },
   },
 }

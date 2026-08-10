@@ -86,11 +86,13 @@ vim.api.nvim_buf_set_lines(original_buf, 0, -1, false, { "original editor buffer
 vim.wo[original_win].foldenable = false
 vim.wo[original_win].foldmethod = "indent"
 vim.wo[original_win].foldcolumn = "3"
+vim.wo[original_win].wrap = false
 local original_fold_options = {
   foldenable = vim.wo[original_win].foldenable,
   foldmethod = vim.wo[original_win].foldmethod,
   foldcolumn = vim.wo[original_win].foldcolumn,
   diff = vim.wo[original_win].diff,
+  wrap = vim.wo[original_win].wrap,
 }
 
 vim.cmd("rightbelow vsplit")
@@ -169,10 +171,17 @@ local preview_before_win = assert(find_preview_window("/original/"))
 local preview_proposed_win = assert(find_preview_window("/proposed/"))
 local preview_before_buf = vim.api.nvim_win_get_buf(preview_before_win)
 local preview_proposed_buf = vim.api.nvim_win_get_buf(preview_proposed_win)
+
+-- Side-by-side window presentation.
 assert(vim.wo[preview_before_win].diff == false)
 assert(vim.wo[preview_proposed_win].diff == false)
+assert(vim.wo[preview_before_win].wrap == true)
+assert(vim.wo[preview_proposed_win].wrap == true)
 assert(vim.wo[preview_before_win].winbar == " Pi proposal: example.lua — Original ")
 assert(vim.wo[preview_proposed_win].winbar == " Pi proposal: example.lua — Proposed ")
+assert(vim.api.nvim_win_get_position(preview_proposed_win)[2] > vim.api.nvim_win_get_position(preview_before_win)[2])
+
+-- Scratch-buffer safety and content.
 assert(vim.bo[preview_before_buf].readonly == true)
 assert(vim.bo[preview_proposed_buf].readonly == true)
 assert(vim.bo[preview_before_buf].modifiable == false)
@@ -180,7 +189,6 @@ assert(vim.bo[preview_proposed_buf].modifiable == false)
 assert(vim.bo[preview_before_buf].filetype == "lua")
 assert(vim.api.nvim_buf_get_lines(preview_before_buf, 0, 1, false)[1] == 'local value = "before"')
 assert(vim.api.nvim_buf_get_lines(preview_proposed_buf, 0, 1, false)[1] == 'local value = "after"')
-assert(vim.api.nvim_win_get_position(preview_proposed_win)[2] > vim.api.nvim_win_get_position(preview_before_win)[2])
 
 -- Both proposal buffers expose the old normal-mode `t` layout toggle.
 vim.api.nvim_set_current_win(preview_before_win)
@@ -199,8 +207,11 @@ inline_render_error = nil
 assert(preview.toggle_layout() == nil)
 assert(#preview_windows() == 1)
 local unified_win = preview_windows()[1]
+
+-- Unified window presentation and renderer state.
 assert(vim.api.nvim_win_get_buf(unified_win) == preview_proposed_buf)
 assert(vim.wo[unified_win].diff == false)
+assert(vim.wo[unified_win].wrap == true)
 assert(vim.wo[unified_win].winbar == " Pi proposal: example.lua — Unified ")
 assert(inline_compute_count == 1)
 assert(inline_render_count == 2)
@@ -231,10 +242,13 @@ assert(not vim.api.nvim_buf_is_valid(preview_proposed_buf))
 assert(vim.api.nvim_win_is_valid(original_win))
 assert(vim.api.nvim_win_get_buf(original_win) == original_buf)
 assert(vim.api.nvim_buf_get_lines(original_buf, 0, 1, false)[1] == "original editor buffer")
+
+-- Original editor presentation and focus.
 assert(vim.wo[original_win].foldenable == original_fold_options.foldenable)
 assert(vim.wo[original_win].foldmethod == original_fold_options.foldmethod)
 assert(vim.wo[original_win].foldcolumn == original_fold_options.foldcolumn)
 assert(vim.wo[original_win].diff == original_fold_options.diff)
+assert(vim.wo[original_win].wrap == original_fold_options.wrap)
 assert(vim.api.nvim_get_current_win() == pi_terminal_win)
 
 -- The chosen unified layout carries into the next proposal in this session.
@@ -263,8 +277,8 @@ for line = 1, viewport_rows * 4 do
   long_original[line] = ("local value_%03d = %d"):format(line, line)
   long_proposed[line] = long_original[line]
 end
-long_proposed[3] = "local value_003 = 'changed near the top'"
-long_proposed[#long_proposed - 2] = "local value_last = 'changed near the bottom'"
+long_proposed[3] = "local value_003 = 30"
+long_proposed[#long_proposed - 2] = "local value_last = 40"
 local compact = preview.open({
   tool_call_id = "compact-preview",
   file_path = vim.fn.getcwd() .. "/compact.lua",

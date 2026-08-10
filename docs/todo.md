@@ -22,8 +22,9 @@ File focusing should work during proposal review without dismissing or resolving
 
 ## Wrap proposal preview text by default
 
-Status: open
+Status: fixed
 Created: 2026-08-09
+Resolved: 2026-08-10
 
 Proposal previews do not wrap long lines by default, so reviewing them can require horizontal scrolling.
 
@@ -37,3 +38,10 @@ Created: 2026-08-09
 Calling `focus_file` can change Neo-tree's displayed location to the focused file's parent directory. This was observed after focusing `pi-extensions/neovim-diff-preview/index.ts`, though it may depend on the current buffer or editor layout.
 
 Focusing a file should preserve Neo-tree's existing location and navigation state.
+
+## Improve autocomplete quality
+
+Status: open
+Created: 2026-08-10
+
+The current Pi autocomplete behavior needs further improvement. Revisit its suggestion quality and interaction flow before treating the feature as complete.

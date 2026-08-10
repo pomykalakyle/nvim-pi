@@ -491,7 +491,7 @@ end
 ---Buffer options enforce read-only behavior; these options control its presentation.
 local function configure_window(preview, win, label)
   vim.api.nvim_win_set_var(win, "pi_diff_preview", true)
-  vim.wo[win].wrap = false
+  vim.wo[win].wrap = true
   vim.wo[win].number = true
   vim.wo[win].relativenumber = false
   vim.wo[win].signcolumn = "yes"
