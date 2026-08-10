@@ -17,7 +17,9 @@ assert.deepEqual(tools.map((tool) => tool.name), ["edit", "write"]);
 for (const tool of tools) {
   const parameters = tool.parameters as { required?: string[]; properties?: Record<string, unknown> };
   assert(parameters.required?.includes("unfolded_ranges"));
+  assert(parameters.required?.includes("justification"));
   assert(parameters.properties?.unfolded_ranges);
+  assert(parameters.properties?.justification);
   assert(String(tool.description).includes("proposed file"));
   assert(String(tool.description).toLowerCase().includes("every changed hunk"));
   assert.equal(typeof tool.prepareArguments, "function");
@@ -57,6 +59,7 @@ function renderContext(args: unknown, state: Record<string, unknown> = {}) {
 const editRenderer = tools.find((tool) => tool.name === "edit")!;
 const editArgs = {
   path: "example.txt",
+  justification: "Update the terminal example shown in manual review.",
   edits: [{ oldText: "terminal-old", newText: "terminal-new" }],
   unfolded_ranges: [{ start_line: 1, end_line: 1 }],
 };
@@ -66,12 +69,28 @@ const compactEdit = (editRenderer.renderCall as Function)(
   theme,
   compactEditContext,
 );
-assert(!compactEdit.render(80).join("\n").includes("terminal-new"));
+assert.equal(compactEdit.render(80).join("\n"), "");
 assert.equal(compactEditContext.state.terminalRenderer, "compact");
+
+const pendingEdit = (editRenderer.renderResult as Function)(
+  {
+    content: [{ type: "text", text: "Proposal pending" }],
+    details: { proposalPending: true },
+  },
+  {},
+  theme,
+  compactEditContext,
+);
+const pendingEditText = pendingEdit.render(80).join("\n");
+assert(pendingEditText.includes(editArgs.path));
+assert(pendingEditText.includes(editArgs.justification));
+assert(pendingEditText.includes("Status: pending"));
+assert(pendingEditText.includes("Option+R to review"));
 
 const writeRenderer = tools.find((tool) => tool.name === "write")!;
 const writeArgs = {
   path: "example.txt",
+  justification: "Create the terminal example shown in manual review.",
   content: "terminal-content",
   unfolded_ranges: [{ start_line: 1, end_line: 1 }],
 };
@@ -81,8 +100,24 @@ const compactWrite = (writeRenderer.renderCall as Function)(
   theme,
   compactWriteContext,
 );
-assert(!compactWrite.render(80).join("\n").includes("terminal-content"));
+assert.equal(compactWrite.render(80).join("\n"), "");
 assert.equal(compactWriteContext.state.terminalRenderer, "compact");
+
+for (const outcome of ["accepted", "rejected"] as const) {
+  const settledWrite = (writeRenderer.renderResult as Function)(
+    {
+      content: [{ type: "text", text: `Proposal ${outcome}` }],
+      details: { proposalResolution: outcome },
+    },
+    {},
+    theme,
+    compactWriteContext,
+  );
+  const settledText = settledWrite.render(80).join("\n");
+  assert(settledText.includes(writeArgs.path));
+  assert(settledText.includes(writeArgs.justification));
+  assert(settledText.includes(`Status: ${outcome}`));
+}
 
 const compactError = (writeRenderer.renderResult as Function)(
   { content: [{ type: "text", text: "write exploded" }] },
@@ -124,7 +159,7 @@ registerPreviewAwareMutationTools({
 const fallbackWrite = fallbackTools.find((tool) => tool.name === "write")!;
 const fallbackContext = renderContext(writeArgs);
 const safeFallback = (fallbackWrite.renderCall as Function)(writeArgs, theme, fallbackContext);
-assert(!safeFallback.render(80).join("\n").includes("terminal-content"));
+assert.equal(safeFallback.render(80).join("\n"), "");
 assert.equal(fallbackContext.state.terminalRenderer, "compact");
 
 const directory = await mkdtemp(join(tmpdir(), "nvim-pi-preview-tools-"));
@@ -138,6 +173,7 @@ try {
     "edit-test",
     {
       path: "edit.txt",
+      justification: "Update the edit fixture.",
       edits: [{ oldText: "before", newText: "after" }],
       unfolded_ranges: [{ start_line: 1, end_line: 1 }],
     },
@@ -153,6 +189,7 @@ try {
     "write-test",
     {
       path: "write.txt",
+      justification: "Create the write fixture.",
       content: "written\n",
       unfolded_ranges: [{ start_line: 1, end_line: 1 }],
     },

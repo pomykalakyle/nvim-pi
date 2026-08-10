@@ -6,7 +6,12 @@ import {
   type ExtensionContext,
   type WriteToolInput,
 } from "@earendil-works/pi-coding-agent";
-import { Box, Container, Text } from "@earendil-works/pi-tui";
+import {
+  Box,
+  type Component,
+  Container,
+  Text,
+} from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
 
 const unfoldedRangeSchema = Type.Object({
@@ -31,6 +36,11 @@ export const previewEditSchema = Type.Object({
   path: Type.String({
     description: "Path to the file to edit (relative or absolute).",
   }),
+  justification: Type.String({
+    minLength: 1,
+    maxLength: 500,
+    description: "Concise user-facing reason for the edit and its intended effect.",
+  }),
   edits: Type.Array(
     Type.Object({
       oldText: Type.String({
@@ -53,6 +63,11 @@ export const previewEditSchema = Type.Object({
 export const previewWriteSchema = Type.Object({
   path: Type.String({
     description: "Path to the file to write (relative or absolute).",
+  }),
+  justification: Type.String({
+    minLength: 1,
+    maxLength: 500,
+    description: "Concise user-facing reason for the write and its intended effect.",
   }),
   content: Type.String({ description: "Content to write to the file." }),
   unfolded_ranges: unfoldedRangesSchema,
@@ -122,19 +137,90 @@ function terminalRendererMode(
   return state.terminalRenderer;
 }
 
-function renderCompactResult(
-  result: { content: Array<{ type: string; text?: string }> },
+/** Build the transcript-native card that identifies a manual file review. */
+function renderManualReviewCard(
+  args: { path?: unknown; justification?: unknown },
+  outcome: "pending" | "accepted" | "rejected",
   theme: {
-    fg: (color: "error", text: string) => string;
+    bold: (text: string) => string;
+    fg: (color: string, text: string) => string;
+    bg: (color: string, text: string) => string;
+  },
+): Box {
+  // Tool arguments stream incrementally, so keep the card readable before completion.
+  const path = typeof args.path === "string" ? args.path : "Preparing path…";
+  const justification =
+    typeof args.justification === "string" && args.justification.trim()
+      ? args.justification.trim()
+      : "Preparing justification…";
+
+  // A real Box carries Pi's pending-tool background across the full card width.
+  const box = new Box(1, 1, (text) => theme.bg("toolPendingBg", text));
+  box.addChild(
+    new Text(
+      [
+        theme.fg("accent", theme.bold("Manual Review")),
+        `${theme.fg("muted", "File:")} ${path}`,
+        `${theme.fg("muted", "Why:")} ${justification}`,
+        `${theme.fg("muted", "Status:")} ${outcome}`,
+        "",
+        theme.fg(
+          "dim",
+          outcome === "pending"
+            ? "File unchanged · Option+R to review"
+            : outcome === "accepted"
+              ? "File changed"
+              : "File unchanged",
+        ),
+      ].join("\n"),
+      0,
+      0,
+    ),
+  );
+  return box;
+}
+
+/** Render the durable manual proposal outcome after focused review closes. */
+function renderManualResult(
+  args: { path?: unknown; justification?: unknown },
+  result: {
+    content: Array<{ type: string; text?: string }>;
+    details?: { proposalPending?: unknown; proposalResolution?: unknown };
+  },
+  theme: {
+    bold: (text: string) => string;
+    fg: (color: string, text: string) => string;
+    bg: (color: string, text: string) => string;
   },
   isError: boolean,
-) {
-  if (!isError) return new Container();
-  const message = result.content
-    .filter((item) => item.type === "text")
-    .map((item) => item.text ?? "")
-    .join("\n");
-  return new Text(theme.fg("error", message || "File mutation failed"), 0, 0);
+): Component {
+  // Compact rendering still surfaces the complete error returned by the tool.
+  if (isError) {
+    const message = result.content
+      .filter((item) => item.type === "text")
+      .map((item) => item.text ?? "")
+      .join("\n");
+    return new Text(
+      theme.fg("error", message || "File mutation failed"),
+      0,
+      0,
+    );
+  }
+
+  if (result.details?.proposalPending === true) {
+    return renderManualReviewCard(args, "pending", theme);
+  }
+  if (
+    result.details?.proposalResolution === "accepted" ||
+    result.details?.proposalResolution === "rejected"
+  ) {
+    return renderManualReviewCard(
+      args,
+      result.details.proposalResolution,
+      theme,
+    );
+  }
+  return new Container();
 }
 
 /** Override Pi's mutation schemas and route their diffs to one visible surface. */
@@ -170,19 +256,7 @@ export function registerPreviewAwareMutationTools(
             priorMode === "native" ? context.lastComponent : undefined,
         });
       }
-      const component =
-        context.lastComponent instanceof Box && priorMode === "compact"
-          ? context.lastComponent
-          : new Box(1, 1, (text) => text);
-      component.clear();
-      component.addChild(
-        new Text(
-          `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("muted", args.path)}`,
-          0,
-          0,
-        ),
-      );
-      return component;
+      return new Container();
     },
     renderResult(result, options, theme, context) {
       if (context.state.terminalRenderer === "native") {
@@ -195,7 +269,12 @@ export function registerPreviewAwareMutationTools(
           context,
         );
       }
-      return renderCompactResult(result, theme, context.isError);
+      return renderManualResult(
+        context.args,
+        result,
+        theme,
+        context.isError,
+      );
     },
     prepareArguments(args) {
       const prepared = edit.prepareArguments?.(args) ?? args;
@@ -233,6 +312,7 @@ export function registerPreviewAwareMutationTools(
       WRITE_RANGE_GUIDELINE,
     ],
     parameters: previewWriteSchema,
+    renderShell: "self",
     renderCall(args, theme, context) {
       const priorMode = context.state.terminalRenderer;
       const mode = terminalRendererMode(
@@ -251,14 +331,7 @@ export function registerPreviewAwareMutationTools(
             priorMode === "native" ? context.lastComponent : undefined,
         });
       }
-      const component =
-        context.lastComponent instanceof Text && priorMode === "compact"
-          ? context.lastComponent
-          : new Text("", 0, 0);
-      component.setText(
-        `${theme.fg("toolTitle", theme.bold("write"))} ${theme.fg("muted", args.path)}`,
-      );
-      return component;
+      return new Container();
     },
     renderResult(result, options, theme, context) {
       if (context.state.terminalRenderer === "native") {
@@ -271,7 +344,12 @@ export function registerPreviewAwareMutationTools(
           context,
         );
       }
-      return renderCompactResult(result, theme, context.isError);
+      return renderManualResult(
+        context.args,
+        result,
+        theme,
+        context.isError,
+      );
     },
     prepareArguments(args) {
       validateRangeOrder(args);

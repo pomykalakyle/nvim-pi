@@ -22,6 +22,7 @@ const registry = globalThis as Record<symbol, unknown>;
 const tools: Array<Record<string, unknown>> = [];
 const handlers = new Map<string, Function[]>();
 const commands = new Map<string, Record<string, unknown>>();
+const shortcuts = new Map<string, Record<string, unknown>>();
 const eventHandlers = new Map<string, Function>();
 const entries: Array<Record<string, unknown>> = [];
 const sentMessages: Array<{
@@ -47,6 +48,9 @@ const pi = {
   registerCommand(name: string, command: Record<string, unknown>) {
     commands.set(name, command);
   },
+  registerShortcut(key: string, shortcut: Record<string, unknown>) {
+    shortcuts.set(key, shortcut);
+  },
   appendEntry(customType: string, data: unknown) {
     entries.push({ type: "custom", customType, data });
   },
@@ -71,6 +75,8 @@ const pi = {
 
 let capturedProposal: Record<string, unknown> | undefined;
 let previewOutcome: "reject" | "throw" | "success" = "reject";
+let reviewDecision: "accept" | "reject" | "talk" = "talk";
+let closeFailure = false;
 const refreshed: string[] = [];
 const closed: string[] = [];
 let previewReloads = 0;
@@ -99,6 +105,7 @@ registerNeovimDiffPreview(pi, {
   },
   async closePreview(toolCallId) {
     closed.push(toolCallId);
+    if (closeFailure) throw new Error("Neovim close failed");
   },
   async reloadPreview() {
     previewReloads++;
@@ -128,14 +135,16 @@ try {
   await writeFile(path, "before\n", "utf8");
   const input = {
     path: "example.txt",
+    justification: "Update the example value for proposal lifecycle coverage.",
     edits: [{ oldText: "before", newText: "after" }],
     unfolded_ranges: [{ start_line: 1, end_line: 1 }],
   };
   const notifications: string[] = [];
-  const statuses: Array<string | undefined> = [];
+  let reviewPrompts = 0;
   let aborts = 0;
   const context = {
     cwd: directory,
+    mode: "tui",
     signal: undefined,
     sessionManager: {
       getBranch() {
@@ -146,8 +155,9 @@ try {
       notify(message: string) {
         notifications.push(message);
       },
-      setStatus(_key: string, value: string | undefined) {
-        statuses.push(value);
+      async custom() {
+        reviewPrompts++;
+        return reviewDecision;
       },
     },
     abort() {
@@ -213,8 +223,10 @@ try {
 
   const edit = tools.find((tool) => tool.name === "edit");
   const resolveProposal = tools.find((tool) => tool.name === "resolve_proposal");
+  const reviewShortcut = shortcuts.get("alt+r");
   assert(edit && typeof edit.execute === "function");
   assert(resolveProposal && typeof resolveProposal.execute === "function");
+  assert(reviewShortcut && typeof reviewShortcut.handler === "function");
   const pendingResult = await (edit.execute as Function)(
     "pending-edit",
     input,
@@ -225,6 +237,7 @@ try {
   assert.equal(await readFile(path, "utf8"), "before\n");
   assert.equal(pendingResult.details.proposalPending, true);
   assert.equal(pendingResult.terminate, true);
+  assert.equal(reviewPrompts, 1);
   assert(String(pendingResult.content[0].text).includes("has not changed"));
   await turnEnd({}, context);
   assert.equal(aborts, 1);
@@ -243,7 +256,6 @@ try {
   assert.deepEqual(refreshed, []);
   await executionEnd({ toolName: "edit", toolCallId: "pending-edit" }, context);
   assert.deepEqual(closed, []);
-  assert(statuses.at(-1)?.includes("/proposal accept|reject"));
 
   const scoped = beforeAgentStart({ systemPrompt: "base" }, context);
   assert(String(scoped.systemPrompt).includes("conversation is scoped"));
@@ -332,7 +344,6 @@ try {
     context,
   );
   assert.equal(await readFile(path, "utf8"), "revised\n");
-  assert.equal(statuses.at(-1), undefined);
   assert.deepEqual(rejectionResult.details, {
     action: "reject",
     path: "example.txt",
@@ -377,25 +388,89 @@ try {
     { toolName: "edit", toolCallId: "accepted-edit" },
     context,
   );
-  const acceptanceResult = await (resolveProposal.execute as Function)(
-    "resolve-acceptance",
-    { action: "accept" },
+  const messagesBeforeShortcut = sentMessages.length;
+  await (reviewShortcut.handler as Function)({
+    ...context,
+    mode: "tui",
+    isIdle: () => true,
+    ui: {
+      ...context.ui,
+      custom: async () => "accept",
+    },
+  });
+  assert.equal(await readFile(path, "utf8"), "after\n");
+  assert.deepEqual(refreshed, [path, path]);
+  assert(closed.includes("accepted-edit"));
+  assert.equal(sentMessages.length, messagesBeforeShortcut + 1);
+  assert.equal(sentMessages.at(-1)?.message.content, "Proposal accepted.");
+
+  const rejectedInPromptInput = {
+    ...input,
+    edits: [{ oldText: "after", newText: "never written" }],
+  };
+  await toolCall(
+    {
+      toolName: "edit",
+      toolCallId: "prompt-rejection",
+      input: rejectedInPromptInput,
+    },
+    context,
+  );
+  reviewDecision = "reject";
+  closeFailure = true;
+  const promptRejection = await (edit.execute as Function)(
+    "prompt-rejection",
+    rejectedInPromptInput,
     undefined,
     undefined,
     context,
   );
+  reviewDecision = "talk";
+  closeFailure = false;
+  assert.equal(promptRejection.details.proposalResolution, "rejected");
+  assert.equal(promptRejection.terminate, undefined);
   assert.equal(await readFile(path, "utf8"), "after\n");
-  assert.deepEqual(refreshed, [path, path]);
-  assert(closed.includes("accepted-edit"));
-  assert.deepEqual(acceptanceResult.details, {
-    action: "accept",
-    path: "example.txt",
-  });
+  assert(notifications.at(-1)?.includes("could not close its preview"));
+  await executionEnd(
+    { toolName: "edit", toolCallId: "prompt-rejection" },
+    context,
+  );
+
+  const acceptedInPromptInput = {
+    ...input,
+    edits: [{ oldText: "after", newText: "accepted in prompt" }],
+  };
+  await toolCall(
+    {
+      toolName: "edit",
+      toolCallId: "prompt-acceptance",
+      input: acceptedInPromptInput,
+    },
+    context,
+  );
+  reviewDecision = "accept";
+  const promptAcceptance = await (edit.execute as Function)(
+    "prompt-acceptance",
+    acceptedInPromptInput,
+    undefined,
+    undefined,
+    context,
+  );
+  reviewDecision = "talk";
+  assert.equal(promptAcceptance.details.proposalResolution, "accepted");
+  assert.equal(promptAcceptance.terminate, undefined);
+  assert.equal(await readFile(path, "utf8"), "accepted in prompt\n");
+  await executionEnd(
+    { toolName: "edit", toolCallId: "prompt-acceptance" },
+    context,
+  );
+  await writeFile(path, "after\n", "utf8");
 
   const write = tools.find((tool) => tool.name === "write");
   assert(write && typeof write.execute === "function");
   const newFileInput = {
     path: "new.txt",
+    justification: "Create the new-file proposal fixture.",
     content: "new file\n",
     unfolded_ranges: [{ start_line: 1, end_line: 1 }],
   };
@@ -420,6 +495,7 @@ try {
 
   const createdElsewhereInput = {
     path: "created-elsewhere.txt",
+    justification: "Exercise a conflicting external file creation.",
     content: "proposal\n",
     unfolded_ranges: [{ start_line: 1, end_line: 1 }],
   };
@@ -530,7 +606,7 @@ try {
   await sessionTree({}, context);
   await (proposalCommand.handler as Function)("accept", context);
   assert.equal(await readFile(path, "utf8"), "changed outside proposal\n");
-  assert(notifications.at(-1)?.includes("diff is not active"));
+  assert(notifications.at(-1)?.includes("no active Neovim diff"));
   await (proposalCommand.handler as Function)("reject", context);
   previewOutcome = "success";
 
@@ -581,6 +657,7 @@ try {
   await symlink("target-one.txt", linkPath);
   const symlinkInput = {
     path: "linked.txt",
+    justification: "Exercise proposal identity checks through a symlink.",
     edits: [{ oldText: "linked before", newText: "linked after" }],
     unfolded_ranges: [{ start_line: 1, end_line: 1 }],
   };
@@ -617,6 +694,20 @@ try {
   assert(notifications.at(-1)?.includes("resolves to a different file"));
   assert.equal(await readFile(firstTarget, "utf8"), "linked before\n");
   assert.equal(await readFile(secondTarget, "utf8"), "linked before\n");
+  await (proposalCommand.handler as Function)("reject", context);
+
+  const legacyProposal = { ...capturedProposal };
+  delete legacyProposal.justification;
+  entries.push({
+    type: "custom",
+    customType: "nvim-pi-pending-proposal",
+    data: { action: "set", proposal: legacyProposal },
+  });
+  await sessionTree({}, context);
+  assert.equal(
+    capturedProposal?.justification,
+    "No justification was recorded for this older proposal.",
+  );
   await (proposalCommand.handler as Function)("reject", context);
 
   await writeFile(path, "before\n", "utf8");

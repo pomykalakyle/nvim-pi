@@ -3,6 +3,7 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
     "lib": ["ES2023", "DOM"],
     "baseUrl": ".",
     "paths": {
@@ -16,7 +17,7 @@
         "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
       ],
       "@gotgenes/pi-permission-system": [
-        "vendor/pi-packages/packages/pi-permission-system/src/service.ts"
+        "vendor/pi-packages/packages/pi-permission-system/dist/public.d.ts"
       ],
       "typebox": [
         "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/typebox/build/index.d.mts"

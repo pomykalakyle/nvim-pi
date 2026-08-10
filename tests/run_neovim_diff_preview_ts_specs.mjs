@@ -17,6 +17,7 @@ const jiti = createJiti(import.meta.url, {
 for (const spec of [
   "./neovim_diff_preview_result_spec.ts",
   "./neovim_diff_preview_tools_spec.ts",
+  "./neovim_diff_preview_review_ui_spec.ts",
   "./neovim_diff_preview_extension_spec.ts",
 ]) {
   await jiti.import(spec);

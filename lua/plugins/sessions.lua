@@ -19,6 +19,7 @@ return {
         "~/Documents/projects/gate",
         "~/Documents/projects/Fall",
         "~/Documents/projects/nvim-pi",
+        "~/Documents/projects/super-secret-sailor",
         "~/Documents",
         "~/.config/nvim",
       },
