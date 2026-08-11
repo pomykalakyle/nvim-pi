@@ -4,6 +4,7 @@ local M = {}
 
 local setup_done = false
 
+--- Provenance: vibed=true, reviewed=false.
 local function setup_sticky()
   local sticky = {
     active = false,
@@ -11,17 +12,23 @@ local function setup_sticky()
     timeout = 600,
   }
 
+  --- Provenance: vibed=true, reviewed=false.
   local function toggle()
     sticky.active = true
     sticky.timer:stop()
-    sticky.timer:start(sticky.timeout, 0, vim.schedule_wrap(function()
-      sticky.active = false
-    end))
+    sticky.timer:start(
+      sticky.timeout,
+      0,
+      vim.schedule_wrap(--[[ Provenance: vibed=true, reviewed=false. ]] function()
+        sticky.active = false
+      end)
+    )
   end
 
   return sticky, toggle
 end
 
+--- Provenance: vibed=true, reviewed=false.
 function M.setup(opts)
   if setup_done then
     return
@@ -62,17 +69,17 @@ function M.setup(opts)
   map(nvo, "<leader>m", "^", { desc = "Physical <Space>h / Virtual <leader>m: Line start" })
   map(nvo, "<leader>i", "$", { desc = "Physical <Space>l / Virtual <leader>i: Line end" })
 
-  map(nvo, "<BS>n", function()
+  map(nvo, "<BS>n", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     sticky_toggle()
     return "5j"
   end, { silent = true, expr = true, desc = "Physical <BS>j / Virtual <BS>n: Sticky jump down" })
 
-  map(nvo, "<BS>e", function()
+  map(nvo, "<BS>e", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     sticky_toggle()
     return "5k"
   end, { silent = true, expr = true, desc = "Physical <BS>k / Virtual <BS>e: Sticky jump up" })
 
-  map(nvo, "n", function()
+  map(nvo, "n", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     if sticky.active then
       sticky_toggle()
       return "5j"
@@ -80,7 +87,7 @@ function M.setup(opts)
     return "j"
   end, { silent = true, expr = true, desc = "Physical j / Virtual n: Down (5 lines when sticky active)" })
 
-  map(nvo, "e", function()
+  map(nvo, "e", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     if sticky.active then
       sticky_toggle()
       return "5k"
@@ -128,59 +135,59 @@ function M.setup(opts)
   -- K (freed from previous-search) now shows LSP hover docs, like VSCode's
   -- Shift+K. Normal mode only; mapped globally here so it is consistent even in
   -- buffers without an LSP attached (where it simply opens an empty hover).
-  map("n", "K", function()
+  map("n", "K", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     vim.lsp.buf.hover()
   end, { desc = "Virtual K: LSP hover (doc info)" })
 
   if opts.vscode then
+    --- Provenance: vibed=true, reviewed=false.
     local function notify(action)
       vim.fn.VSCodeNotify(action)
     end
 
-    map("n", "gb", function()
+    map("n", "gb", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("workbench.action.previousEditor")
     end, { silent = true, desc = "Physical gt / Virtual gb: Previous tab" })
 
-    map("n", "<BS>c", function()
+    map("n", "<BS>c", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("workbench.view.explorer")
     end, { silent = true, desc = "Focus Explorer" })
 
-    map("n", "<BS>k", function()
+    map("n", "<BS>k", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("workbench.files.action.focusFilesExplorer")
     end, { silent = true, desc = "Focus Files Explorer" })
 
     local ord = { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth" }
     for i = 1, 9 do
-      map("n", "<BS>" .. i, function()
+      map("n", "<BS>" .. i, --[[ Provenance: vibed=true, reviewed=false. ]] function()
         notify("workbench.action.focus" .. ord[i] .. "EditorGroup")
       end, { silent = true, desc = "Focus editor group " .. i })
     end
 
-    map("n", "gD", function()
+    map("n", "gD", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("editor.action.revealDefinitionAside")
-      vim.defer_fn(function()
+      vim.defer_fn(--[[ Provenance: vibed=true, reviewed=false. ]] function()
         notify("workbench.action.focusSecondEditorGroup")
       end, 30)
     end, { silent = true, desc = "Definition to Group 2 and focus there" })
 
-    map("n", "gS", function()
+    map("n", "gS", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("editor.action.revealDefinitionAside")
-      vim.defer_fn(function()
+      vim.defer_fn(--[[ Provenance: vibed=true, reviewed=false. ]] function()
         notify("workbench.action.focusRightGroup")
         notify("workbench.action.moveEditorToFirstGroup")
         notify("workbench.action.focusFirstEditorGroup")
       end, 60)
     end, { silent = true, desc = "Definition -> Group 1" })
 
-    map("n", "gp", function()
+    map("n", "gp", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("editor.action.peekDefinition")
     end, { silent = true, desc = "Physical gr / Virtual gp: Peek definition" })
 
-    map("n", "gh", function()
+    map("n", "gh", --[[ Provenance: vibed=true, reviewed=false. ]] function()
       notify("editor.showCallHierarchy")
     end, { silent = true, desc = "Peek call hierarchy" })
   end
-
 end
 
 return M

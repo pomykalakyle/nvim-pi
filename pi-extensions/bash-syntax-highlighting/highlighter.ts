@@ -47,8 +47,9 @@ type StyledCapture = {
   color: BashThemeColor;
 };
 
+/** Provenance: vibed=true, reviewed=false. */
 function styledCaptures(captures: QueryCapture[]): StyledCapture[] {
-  return captures.flatMap((capture) => {
+  return captures.flatMap(/** Provenance: vibed=true, reviewed=false. */ (capture) => {
     const color = CAPTURE_COLORS[capture.name];
     if (!color || capture.node.startIndex === capture.node.endIndex) return [];
     return [
@@ -61,18 +62,24 @@ function styledCaptures(captures: QueryCapture[]): StyledCapture[] {
   });
 }
 
-/** Prefer the smallest capture so nested variables retain their own color inside strings. */
+/**
+ * Prefer the smallest capture so nested variables retain their own color inside strings.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function captureForRange(
   captures: StyledCapture[],
   start: number,
   end: number,
 ): StyledCapture | undefined {
   return captures
-    .filter((capture) => capture.start <= start && capture.end >= end)
-    .sort((left, right) => left.end - left.start - (right.end - right.start))[0];
+    .filter(/** Provenance: vibed=true, reviewed=false. */ (capture) => capture.start <= start && capture.end >= end)
+    .sort(/** Provenance: vibed=true, reviewed=false. */ (left, right) => left.end - left.start - (right.end - right.start))[0];
 }
 
-/** Highlight Bash using tree-sitter-bash's bundled, command-aware standard query. */
+/**
+ * Highlight Bash using tree-sitter-bash's bundled, command-aware standard query.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function highlightBashCommand(
   command: string,
   theme: BashHighlightTheme,
@@ -85,12 +92,12 @@ export function highlightBashCommand(
     const boundaries = [
       0,
       command.length,
-      ...captures.flatMap((capture) => [capture.start, capture.end]),
+      ...captures.flatMap(/** Provenance: vibed=true, reviewed=false. */ (capture) => [capture.start, capture.end]),
     ]
-      .filter((index) => index >= 0 && index <= command.length)
-      .sort((left, right) => left - right)
+      .filter(/** Provenance: vibed=true, reviewed=false. */ (index) => index >= 0 && index <= command.length)
+      .sort(/** Provenance: vibed=true, reviewed=false. */ (left, right) => left - right)
       .filter(
-        (index, position, all) =>
+        /** Provenance: vibed=true, reviewed=false. */ (index, position, all) =>
           position === 0 || index !== all[position - 1],
       );
 

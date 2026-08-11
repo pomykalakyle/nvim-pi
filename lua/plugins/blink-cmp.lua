@@ -1,6 +1,7 @@
 return {
   {
     "saghen/blink.cmp",
+    --[[ Provenance: vibed=true, reviewed=false. ]]
     opts = function(_, opts)
       opts.keymap = opts.keymap or {}
       opts.keymap["<Tab>"] = {

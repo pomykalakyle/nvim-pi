@@ -59,4 +59,11 @@ const renderFailureMessage = formatPreviewFailure({
 });
 assert(renderFailureMessage.includes("edit/write call was not executed"));
 
+const workspaceFailureMessage = formatPreviewFailure({
+  ok: false,
+  reason: "workspace_unavailable",
+  message: "The requesting Pi workspace is unavailable",
+});
+assert(workspaceFailureMessage.includes("originating Pi workspace"));
+
 console.log("neovim-diff-preview-result-spec-ok");

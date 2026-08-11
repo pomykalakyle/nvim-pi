@@ -100,8 +100,30 @@ local pi_terminal_win = vim.api.nvim_get_current_win()
 local pi_terminal_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_win_set_buf(pi_terminal_win, pi_terminal_buf)
 vim.b[pi_terminal_buf].pi_terminal = true
+vim.b[pi_terminal_buf].terminal_job_pid = 4242
+
+local workspace = {
+  id = 1,
+  tabpage = vim.api.nvim_get_current_tabpage(),
+  terminal = { buf = pi_terminal_buf },
+}
+local workspaces_by_pid = { [4242] = workspace }
+package.loaded["config.pi.workspace"] = {
+  current = function()
+    local current_tab = vim.api.nvim_get_current_tabpage()
+    for _, candidate in pairs(workspaces_by_pid) do
+      if candidate.tabpage == current_tab then
+        return candidate
+      end
+    end
+  end,
+  for_process = function(pid)
+    return workspaces_by_pid[pid]
+  end,
+}
 
 local payload = {
+  requester_pid = 4242,
   tool_call_id = "preview-test",
   file_path = vim.fn.getcwd() .. "/example.lua",
   old_content = 'local value = "before"\nreturn value\n',
@@ -122,6 +144,18 @@ local function preview_windows()
   return windows
 end
 
+---Returns the preview windows visible in one native workspace tab.
+local function preview_windows_in_tab(tabpage)
+  local windows = {}
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tabpage)) do
+    local ok, value = pcall(vim.api.nvim_win_get_var, win, "pi_diff_preview")
+    if ok and value == true then
+      windows[#windows + 1] = win
+    end
+  end
+  return windows
+end
+
 ---Find a preview window by its synthetic buffer-name component.
 ---Synthetic names distinguish the original and proposed sides.
 local function find_preview_window(component)
@@ -134,6 +168,19 @@ local function find_preview_window(component)
 end
 
 local preview = require("config.pi.diff_preview")
+local open_preview = preview.open
+
+---Associates every preview request with the fixture Pi process.
+preview.open = function(input)
+  input.requester_pid = input.requester_pid or 4242
+  return open_preview(input)
+end
+
+---Closes the fixture workspace's preview for one tool call.
+local function close_preview(tool_call_id)
+  return preview.close(4242, tool_call_id)
+end
+
 local invalid_notification
 local original_notify = vim.notify
 vim.notify = function(message, level)
@@ -148,7 +195,7 @@ local missing_ranges = preview.open({
 vim.notify = original_notify
 assert(missing_ranges.ok == false)
 assert(missing_ranges.reason == "preview_invalid_request")
-assert(invalid_notification.message:find("requires valid nonempty unfolded_ranges", 1, true))
+assert(invalid_notification.message:find("requires a requester process", 1, true))
 assert(invalid_notification.level == vim.log.levels.ERROR)
 
 vim.notify = function() end
@@ -226,7 +273,7 @@ assert(vim.wo[preview_proposed_win].diff == false)
 assert(inline_clear_count == 1)
 assert(vim.g.pi_diff_preview_layout == "side_by_side")
 
-assert(preview.close("different-tool-call") == false)
+assert(close_preview("different-tool-call") == false)
 assert(#preview_windows() == 2)
 
 -- Closing unified previews clears decorations and deletes both hidden scratch buffers.
@@ -234,7 +281,7 @@ vim.cmd("PiDiffToggle")
 assert(#preview_windows() == 1)
 assert(inline_compute_count == 1)
 assert(inline_render_count == 3)
-assert(preview.close("preview-test"))
+assert(close_preview("preview-test"))
 assert(#preview_windows() == 0)
 assert(inline_clear_count == 2)
 assert(not vim.api.nvim_buf_is_valid(preview_before_buf))
@@ -259,7 +306,7 @@ assert(inline_render_count == 4)
 vim.cmd("PiDiffToggle")
 assert(#preview_windows() == 2)
 assert(vim.g.pi_diff_preview_layout == "side_by_side")
-assert(preview.close("preview-test"))
+assert(close_preview("preview-test"))
 
 diff_hit_timeout = true
 local timed_out = preview.open(payload)
@@ -329,7 +376,7 @@ end)
 
 -- Leave unified selected and verify a new proposal is measured in that layout.
 assert(preview.toggle_layout() == nil)
-assert(preview.close("compact-preview"))
+assert(close_preview("compact-preview"))
 local compact_unified = preview.open({
   tool_call_id = "compact-preview-unified",
   file_path = vim.fn.getcwd() .. "/compact.lua",
@@ -344,7 +391,7 @@ local compact_unified = preview.open({
 assert(compact_unified.ok == true)
 assert(compact_unified.preview_rows < compact_unified.viewport_rows)
 assert(#preview_windows() == 1)
-assert(preview.close("compact-preview-unified"))
+assert(close_preview("compact-preview-unified"))
 
 -- A model cannot omit or partially expose a changed hunk.
 local uncovered = preview.open({
@@ -406,7 +453,7 @@ local deletion = preview.open({
   unfolded_ranges = { { start_line = 5, end_line = 5 } },
 })
 assert(deletion.ok == true)
-assert(preview.close("deletion-preview"))
+assert(close_preview("deletion-preview"))
 
 -- A genuinely large change is rejected in both layouts even when its complete range is visible.
 local entirely_changed = {}
@@ -424,7 +471,7 @@ local oversized_payload = {
 assert(preview.open(payload))
 assert(preview.toggle_layout() == nil)
 assert(vim.g.pi_diff_preview_layout == "side_by_side")
-assert(preview.close(payload.tool_call_id))
+assert(close_preview(payload.tool_call_id))
 local oversized_side_by_side = preview.open(oversized_payload)
 assert(oversized_side_by_side.ok == false)
 assert(oversized_side_by_side.reason == "preview_too_tall")
@@ -434,7 +481,7 @@ assert(oversized_side_by_side.viewport_rows == viewport_rows)
 assert(preview.open(payload))
 assert(preview.toggle_layout() == nil)
 assert(vim.g.pi_diff_preview_layout == "unified")
-assert(preview.close(payload.tool_call_id))
+assert(close_preview(payload.tool_call_id))
 oversized_payload.tool_call_id = "oversized-preview-unified"
 local oversized_unified = preview.open(oversized_payload)
 assert(oversized_unified.ok == false)
@@ -462,13 +509,62 @@ assert(not vim.api.nvim_buf_is_valid(replaced_before_buf))
 local replacement_proposed_win = assert(find_preview_window("/proposed/"))
 local replacement_proposed_buf = vim.api.nvim_win_get_buf(replacement_proposed_win)
 assert(vim.api.nvim_buf_get_lines(replacement_proposed_buf, 0, 1, false)[1] == 'local value = "replacement"')
-assert(preview.close("replacement-preview"))
+assert(close_preview("replacement-preview"))
 assert(vim.api.nvim_win_get_buf(original_win) == original_buf)
 
-vim.b[pi_terminal_buf].pi_terminal = false
+-- Each workspace retains its own preview and close lifecycle.
+local first_workspace_preview = vim.deepcopy(payload)
+first_workspace_preview.tool_call_id = "first-workspace-preview"
+assert(preview.open(first_workspace_preview).ok == true)
+assert(#preview_windows_in_tab(workspace.tabpage) >= 1)
+
+vim.cmd.tabnew()
+local second_workspace_tab = vim.api.nvim_get_current_tabpage()
+local second_workspace_editor = vim.api.nvim_get_current_win()
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { "second workspace editor" })
+vim.cmd("rightbelow vsplit")
+local second_terminal_win = vim.api.nvim_get_current_win()
+local second_terminal_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_win_set_buf(second_terminal_win, second_terminal_buf)
+vim.b[second_terminal_buf].pi_terminal = true
+vim.b[second_terminal_buf].terminal_job_pid = 4343
+local second_workspace = {
+  id = 2,
+  tabpage = second_workspace_tab,
+  terminal = { buf = second_terminal_buf },
+}
+workspaces_by_pid[4343] = second_workspace
+local second_workspace_preview = vim.deepcopy(payload)
+second_workspace_preview.requester_pid = 4343
+second_workspace_preview.tool_call_id = "second-workspace-preview"
+assert(preview.open(second_workspace_preview).ok == true)
+assert(vim.api.nvim_get_current_tabpage() == second_workspace_tab)
+assert(#preview_windows_in_tab(second_workspace_tab) >= 1)
+assert(#preview_windows_in_tab(workspace.tabpage) >= 1)
+assert(preview.has_active_previews())
+assert(preview.reload_if_idle() == false)
+assert(#preview_windows_in_tab(second_workspace_tab) >= 1)
+assert(#preview_windows_in_tab(workspace.tabpage) >= 1)
+
+assert(preview.close_workspace(second_workspace.id, "second-workspace-preview"))
+assert(#preview_windows_in_tab(second_workspace_tab) == 0)
+assert(#preview_windows_in_tab(workspace.tabpage) >= 1)
+vim.api.nvim_set_current_tabpage(workspace.tabpage)
+assert(close_preview("first-workspace-preview"))
+assert(#preview_windows_in_tab(workspace.tabpage) == 0)
+assert(preview.has_active_previews() == false)
+workspaces_by_pid[4343] = nil
+if vim.api.nvim_tabpage_is_valid(second_workspace_tab) then
+  vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(second_workspace_tab))
+end
+assert(vim.api.nvim_win_is_valid(second_workspace_editor) == false)
+
+local registered_terminal_buf = workspace.terminal.buf
+workspace.terminal.buf = vim.api.nvim_create_buf(false, true)
 local opened_without_pi, missing_pi_error = pcall(preview.open, payload)
 assert(opened_without_pi == false)
-assert(tostring(missing_pi_error):find("Pi terminal is not visible in the current tab", 1, true))
+assert(tostring(missing_pi_error):find("Pi terminal is not visible in the requesting workspace", 1, true))
+workspace.terminal.buf = registered_terminal_buf
 assert(#preview_windows() == 0)
 assert(vim.api.nvim_win_get_buf(original_win) == original_buf)
 
@@ -511,5 +607,9 @@ vim.o.autoread = previous_autoread
 vim.api.nvim_buf_delete(refresh_buf, { force = true })
 vim.api.nvim_buf_delete(unrelated_buf, { force = true })
 vim.fn.delete(temporary_directory, "rf")
+
+local loaded_preview = package.loaded["config.pi.diff_preview"]
+assert(preview.reload_if_idle())
+assert(package.loaded["config.pi.diff_preview"] ~= loaded_preview)
 
 print("pi-diff-preview-spec-ok")

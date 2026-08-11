@@ -8,6 +8,7 @@ local project_picker = require("config.project_picker.picker")
 project_picker.bootstrap()
 
 --- Re-detects filetypes for restored normal buffers missing one.
+--- Provenance: vibed=true, reviewed=false.
 local function restore_empty_filetypes()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == "" and vim.bo[buf].filetype == "" then
@@ -21,14 +22,16 @@ local function restore_empty_filetypes()
 end
 
 --- Opens the interactive Pi terminal after a project session finishes loading.
+--- Provenance: vibed=true, reviewed=false.
 local function open_pi_for_project()
   require("lazy").load({ plugins = { "snacks.nvim" } })
-  require("config.pi.terminal").open()
+  require("config.pi.workspace").open()
 end
 
 --- Opens Neo-tree after Pi and restores focus to the Pi terminal.
+--- Provenance: vibed=true, reviewed=false.
 local function open_neo_tree_for_project()
-  editor.with_preserved_focus(function()
+  editor.with_preserved_focus(--[[ Provenance: vibed=true, reviewed=false. ]] function()
     require("lazy").load({ plugins = { "neo-tree.nvim" } })
     require("neo-tree.command").execute({
       action = "focus",
@@ -38,6 +41,7 @@ local function open_neo_tree_for_project()
 end
 
 --- Records the new project root after the working directory changes.
+--- Provenance: vibed=true, reviewed=false.
 local function handle_directory_changed()
   open_project_registry.activate_current_root()
   vim.schedule(project_local_config.load_current)
@@ -47,8 +51,9 @@ end
 vim.api.nvim_create_autocmd("User", {
   group = group,
   pattern = "SessionLoadPost",
+  --[[ Provenance: vibed=true, reviewed=false. ]]
   callback = function()
-    vim.schedule(function()
+    vim.schedule(--[[ Provenance: vibed=true, reviewed=false. ]] function()
       restore_empty_filetypes()
       vim.cmd("silent! filetype detect")
       open_pi_for_project()
@@ -69,10 +74,11 @@ vim.api.nvim_create_autocmd("VimEnter", {
   group = group,
   nested = true,
   --- Starts the session-restore flow for plain empty-argv launches.
+  --[[ Provenance: vibed=true, reviewed=false. ]]
   callback = function()
     if vim.fn.argc() == 0 and not vim.g.started_with_stdin then
       if vim.g.user_project_picker_on_startup then
-        vim.schedule(function()
+        vim.schedule(--[[ Provenance: vibed=true, reviewed=false. ]] function()
           project_picker.pick_project(false)
         end)
         return

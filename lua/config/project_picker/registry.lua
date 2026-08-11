@@ -9,6 +9,7 @@ local marker_path = state_dir .. "/" .. tostring(vim.fn.getpid())
 local own_root = nil
 
 --- Normalizes a project root for marker comparisons.
+--- Provenance: vibed=true, reviewed=false.
 local function normalize(root)
   if not root or root == "" then
     return nil
@@ -18,16 +19,19 @@ local function normalize(root)
 end
 
 --- Returns the shared repository identity for a project path.
+--- Provenance: vibed=true, reviewed=false.
 function M.project_key(dir)
   return git_worktree.common_dir(dir) or normalize(dir)
 end
 
 --- Reports whether a PID still identifies a live local process.
+--- Provenance: vibed=true, reviewed=false.
 local function pid_is_running(pid)
   return pid and pid ~= vim.fn.getpid() and vim.uv.kill(pid, 0) == 0
 end
 
 --- Returns roots currently owned by other live Neovim instances.
+--- Provenance: vibed=true, reviewed=false.
 function M.active_roots()
   vim.fn.mkdir(state_dir, "p")
   local roots = {}
@@ -50,12 +54,14 @@ function M.active_roots()
 end
 
 --- Reports whether another Neovim instance owns a project root.
+--- Provenance: vibed=true, reviewed=false.
 function M.root_is_active(root)
   root = M.project_key(root)
   return root ~= nil and M.active_roots()[root] == true
 end
 
 --- Records this Neovim process as the owner of the current Git repository.
+--- Provenance: vibed=true, reviewed=false.
 function M.activate_current_root()
   local git_worktree_root = git_worktree.root(vim.fn.getcwd())
   local root = git_worktree_root and M.project_key(git_worktree_root) or nil
@@ -69,6 +75,7 @@ function M.activate_current_root()
 end
 
 --- Removes this Neovim process from the live-instance registry.
+--- Provenance: vibed=true, reviewed=false.
 function M.deactivate()
   own_root = nil
   pcall(vim.uv.fs_unlink, marker_path)

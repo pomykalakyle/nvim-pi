@@ -9,6 +9,7 @@ local DIM_HIGHLIGHT = "PiFileFocusDim"
 local active_focuses = {}
 
 ---Remove one Pi process's temporary dimming and interaction handlers.
+--- Provenance: vibed=true, reviewed=false.
 local function clear_focus(requester_pid)
   local active = active_focuses[requester_pid]
   if not active then
@@ -23,6 +24,7 @@ local function clear_focus(requester_pid)
 end
 
 ---Render or hide one focus's dimming without forgetting its selected range.
+--- Provenance: vibed=true, reviewed=false.
 local function render_focus_dimming(active)
   if not vim.api.nvim_buf_is_valid(active.buf) then
     return false
@@ -68,6 +70,7 @@ local function render_focus_dimming(active)
 end
 
 ---Dim every line outside the selected range until explicitly cleared or replaced.
+--- Provenance: vibed=true, reviewed=false.
 local function apply_focus_dimming(requester_pid, win, buf, start_row, end_row)
   clear_focus(requester_pid)
 
@@ -85,6 +88,7 @@ local function apply_focus_dimming(requester_pid, win, buf, start_row, end_row)
 end
 
 ---Return a structured rejection that the Pi extension can report as a failed tool call.
+--- Provenance: vibed=true, reviewed=false.
 local function rejection(reason, message, details)
   return vim.tbl_extend("force", {
     ok = false,
@@ -94,6 +98,7 @@ local function rejection(reason, message, details)
 end
 
 ---Return whether a normal editor window can display an agent-selected range.
+--- Provenance: vibed=true, reviewed=false.
 local function is_focus_target(win, terminal_win)
   if win == terminal_win or not editor.is_normal_window(win) then
     return false
@@ -104,6 +109,7 @@ local function is_focus_target(win, terminal_win)
 end
 
 ---Find the visible terminal window belonging to the Pi process that made the request.
+--- Provenance: vibed=true, reviewed=false.
 local function find_requesting_terminal(requester_pid)
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local buf = vim.api.nvim_win_get_buf(win)
@@ -114,6 +120,7 @@ local function find_requesting_terminal(requester_pid)
 end
 
 ---Return a candidate's screen position and area for stable target selection.
+--- Provenance: vibed=true, reviewed=false.
 local function candidate_geometry(win)
   local position = vim.fn.win_screenpos(win)
   return {
@@ -125,6 +132,7 @@ local function candidate_geometry(win)
 end
 
 ---Choose the normal editor window associated with the requesting Pi terminal.
+--- Provenance: vibed=true, reviewed=false.
 local function find_focus_target(terminal_win, file_path)
   local tab = vim.api.nvim_win_get_tabpage(terminal_win)
   local terminal_position = vim.fn.win_screenpos(terminal_win)
@@ -142,7 +150,7 @@ local function find_focus_target(terminal_win, file_path)
     end
   end
 
-  table.sort(candidates, function(left, right)
+  table.sort(candidates, --[[ Provenance: vibed=true, reviewed=false. ]] function(left, right)
     for _, key in ipairs({ "shows_file", "marked", "to_right" }) do
       if left[key] ~= right[key] then
         return left[key]
@@ -161,6 +169,7 @@ local function find_focus_target(terminal_win, file_path)
 end
 
 ---Load or reuse the normal file-backed buffer for a canonical path.
+--- Provenance: vibed=true, reviewed=false.
 local function load_file_buffer(file_path)
   local stat = vim.uv.fs_stat(file_path)
   if not stat or stat.type ~= "file" then
@@ -186,15 +195,16 @@ local function load_file_buffer(file_path)
 end
 
 ---Restore the buffer, fold option, and view replaced during a rejected focus.
+--- Provenance: vibed=true, reviewed=false.
 local function restore_target(win, snapshot)
   if not vim.api.nvim_win_is_valid(win) then
     return false
   end
 
-  local restored = pcall(function()
+  local restored = pcall(--[[ Provenance: vibed=true, reviewed=false. ]] function()
     vim.api.nvim_win_set_buf(win, snapshot.buf)
     vim.wo[win].foldenable = snapshot.foldenable
-    vim.api.nvim_win_call(win, function()
+    vim.api.nvim_win_call(win, --[[ Provenance: vibed=true, reviewed=false. ]] function()
       vim.fn.winrestview(snapshot.view)
     end)
   end)
@@ -202,6 +212,7 @@ local function restore_target(win, snapshot)
 end
 
 ---Return the largest inclusive end row whose fully expanded text fits the window.
+--- Provenance: vibed=true, reviewed=false.
 local function largest_fitting_end(win, start_row, end_row, viewport_rows)
   local low = start_row
   local high = end_row
@@ -226,8 +237,9 @@ local function largest_fitting_end(win, start_row, end_row, viewport_rows)
 end
 
 ---Center the selected range as a unit and return the resulting visible bounds.
+--- Provenance: vibed=true, reviewed=false.
 local function center_range(win, start_row, end_row, range_rows)
-  return vim.api.nvim_win_call(win, function()
+  return vim.api.nvim_win_call(win, --[[ Provenance: vibed=true, reviewed=false. ]] function()
     local midpoint = vim.api.nvim_win_text_height(win, {
       start_row = start_row,
       end_row = end_row,
@@ -256,6 +268,7 @@ local function center_range(win, start_row, end_row, range_rows)
 end
 
 ---Focus one inclusive file range or return a structured, restorable rejection.
+--- Provenance: vibed=true, reviewed=false.
 function M.focus(payload)
   if type(payload) ~= "table" then
     return rejection("invalid_request", "Focus request must be a table")
@@ -352,7 +365,7 @@ function M.focus(payload)
   end
 
   vim.wo[target_win].foldenable = snapshot.foldenable
-  vim.api.nvim_win_call(target_win, function()
+  vim.api.nvim_win_call(target_win, --[[ Provenance: vibed=true, reviewed=false. ]] function()
     pcall(vim.cmd, ("%d,%dfoldopen!"):format(start_line, end_line))
   end)
 
@@ -386,6 +399,7 @@ function M.focus(payload)
 end
 
 ---Clear temporary focus styling owned by one Pi process.
+--- Provenance: vibed=true, reviewed=false.
 function M.clear(requester_pid)
   if type(requester_pid) ~= "number" then
     return false
@@ -394,6 +408,7 @@ function M.clear(requester_pid)
 end
 
 ---Toggle temporary focus styling in the current tab while retaining its selected ranges.
+--- Provenance: vibed=true, reviewed=false.
 function M.toggle_current_tab()
   local current_tab = vim.api.nvim_get_current_tabpage()
   local matching_focuses = {}
@@ -418,6 +433,7 @@ function M.toggle_current_tab()
 end
 
 ---Clear all temporary focus styling in the current tab without disabling future focus calls.
+--- Provenance: vibed=true, reviewed=false.
 function M.clear_current_tab()
   local current_tab = vim.api.nvim_get_current_tabpage()
   local matching_pids = {}

@@ -1,5 +1,14 @@
 # TODO
 
+## Give subagents access to Neovim-backed file tools
+
+Status: open
+Created: 2026-08-11
+
+Forked subagents can read the repository but cannot use the native `edit` and `write` tools because those tools resolve the requesting Pi workspace through the originating Neovim session. The fork has conversation context and the same working directory, but no matching Neovim workspace registration.
+
+Allow an authorized subagent to route file operations through the originating workspace without creating a worktree or losing proposal and Vibing Mode behavior. Keep workspace ownership explicit so edits cannot be delivered to an unrelated tab or Pi process.
+
 ## Tie Neovim refreshes to actual file mutations
 
 Status: open
@@ -20,6 +29,22 @@ Calling `focus_file` while the proposal review interface is active fails with `N
 
 File focusing should work during proposal review without dismissing or resolving the proposal. Preserve the active review, its pending state, and the user's current editor layout.
 
+## Keep tool commands available during proposal review
+
+Status: open
+Created: 2026-08-10
+
+While an edit or write proposal is pending, the extension blocks Bash and instructs the agent not to run tests, commands, or unrelated tools. This prevents investigation and other non-edit work needed to evaluate the proposal.
+
+Proposal review should restrict additional file mutations without blocking unrelated tool calls.
+
+## Render fenced code blocks in Pi messages
+
+Status: open
+Created: 2026-08-10
+
+Pi messages sometimes display literal Markdown fence delimiters and language labels such as `lua` and `bash` instead of rendering the fenced content as code. Investigate the terminal message renderer and preserve syntax highlighting when the fences are valid.
+
 ## Wrap proposal preview text by default
 
 Status: fixed
@@ -39,9 +64,41 @@ Calling `focus_file` can change Neo-tree's displayed location to the focused fil
 
 Focusing a file should preserve Neo-tree's existing location and navigation state.
 
+## Reveal diff files in Neo-tree reliably
+
+Status: open
+Created: 2026-08-10
+
+Opening a diff does not always reveal its file in Neo-tree. This leaves Neo-tree showing a different location or selection from the file being reviewed.
+
 ## Improve autocomplete quality
 
 Status: open
 Created: 2026-08-10
 
 The current Pi autocomplete behavior needs further improvement. Revisit its suggestion quality and interaction flow before treating the feature as complete.
+
+## Improve workspace presentation
+
+Status: open
+Created: 2026-08-10
+
+Pi workspaces span editor buffers, layouts, Pi sessions, and worktrees, but their identity is currently shown inside the Pi pane. Revisit how all workspaces and the active worktree should be represented without losing per-workspace buffer navigation.
+
+## Avoid entering insert mode when opening a worktree
+
+Status: open
+Created: 2026-08-10
+
+Opening a new worktree leaves Neovim in insert mode with focus in the Pi text input. This is unexpected and makes the new worktree immediately capture keyboard input.
+
+A newly opened worktree should start in normal mode rather than entering the Pi text input.
+
+## Open Pi links without using the mouse
+
+Status: open
+Created: 2026-08-10
+
+Following a link shown in Pi currently requires clicking it. Moving from the keyboard to the mouse interrupts the workflow.
+
+Links shown in Pi should be accessible through a keyboard-driven interaction.

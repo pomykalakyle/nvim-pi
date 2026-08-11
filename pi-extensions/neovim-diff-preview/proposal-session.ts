@@ -53,7 +53,10 @@ type ActivePreview = {
 type AuthorizerService = Pick<PermissionsService, "registerAuthorizer">;
 type SymbolRegistry = Record<symbol, unknown>;
 
-/** Suppress only proposals covered by the active request capability. */
+/**
+ * Suppress only proposals covered by the active request capability.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function shouldSuppressPreview(
   toolName: "edit" | "write",
   path: string,
@@ -67,6 +70,7 @@ function shouldSuppressPreview(
   }
 }
 
+/** Provenance: vibed=true, reviewed=false. */
 function getPermissionsService(): AuthorizerService | undefined {
   const candidate = (globalThis as unknown as SymbolRegistry)[
     PERMISSIONS_SERVICE_KEY
@@ -78,7 +82,10 @@ function getPermissionsService(): AuthorizerService | undefined {
     : undefined;
 }
 
-/** Register conversational edit/write proposals around Pi's real tools. */
+/**
+ * Register conversational edit/write proposals around Pi's real tools.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function registerProposalSession(
   pi: ExtensionAPI,
   nvimOperations: NvimOperations = defaultNvimOperations,
@@ -89,12 +96,12 @@ export function registerProposalSession(
   let registeredPermissions: AuthorizerService | undefined;
   let disposeAuthorizer: (() => void) | undefined;
 
-  const persistPending = (): void => {
+  const persistPending = /** Provenance: vibed=true, reviewed=false. */ (): void => {
     persistPendingProposal(pi, pending);
   };
 
   /** Tell the model about a proposal decision made outside its tool call. */
-  const announceResolution = (
+  const announceResolution = /** Provenance: vibed=true, reviewed=false. */ (
     resolved: Proposal,
     action: "accept" | "reject",
   ): void => {
@@ -116,7 +123,7 @@ export function registerProposalSession(
   };
 
   /** Resolve the pending proposal and return the snapshot that was cleared. */
-  const resolvePendingProposal = async (
+  const resolvePendingProposal = /** Provenance: vibed=true, reviewed=false. */ async (
     action: "accept" | "reject",
     ctx: ExtensionContext,
   ): Promise<Proposal | undefined> => {
@@ -159,7 +166,7 @@ export function registerProposalSession(
   };
 
   /** Open the focused review UI when the active Pi mode can render it. */
-  const promptForPendingProposal = async (
+  const promptForPendingProposal = /** Provenance: vibed=true, reviewed=false. */ async (
     ctx: ExtensionContext,
   ): Promise<ReviewDecision> => {
     if (!pending || ctx.mode !== "tui") return "talk";
@@ -169,7 +176,7 @@ export function registerProposalSession(
     });
   };
 
-  const restorePreview = async (
+  const restorePreview = /** Provenance: vibed=true, reviewed=false. */ async (
     proposal: Proposal | undefined,
   ): Promise<boolean> => {
     if (!proposal) return false;
@@ -184,7 +191,7 @@ export function registerProposalSession(
     }
   };
 
-  const synchronizeSessionProposal = async (
+  const synchronizeSessionProposal = /** Provenance: vibed=true, reviewed=false. */ async (
     ctx: ExtensionContext,
   ): Promise<void> => {
     const priorActive = active;
@@ -210,7 +217,7 @@ export function registerProposalSession(
     }
   };
 
-  const registerAuthorizer = (): boolean => {
+  const registerAuthorizer = /** Provenance: vibed=true, reviewed=false. */ (): boolean => {
     const permissions = getPermissionsService();
     if (!permissions) return false;
     if (registeredPermissions === permissions && disposeAuthorizer) return true;
@@ -226,7 +233,7 @@ export function registerProposalSession(
     try {
       disposeAuthorizer = permissions.registerAuthorizer(
         PROPOSAL_AUTHORIZER,
-        async (
+        /** Provenance: vibed=true, reviewed=false. */ async (
           details: PromptPermissionDetails,
           _query: unknown,
           log: AuthorizerLog,
@@ -274,7 +281,7 @@ export function registerProposalSession(
   registerPreviewAwareMutationTools(
     pi,
     shouldSuppressPreview,
-    async (toolCallId, _toolName, _input, ctx) => {
+    /** Provenance: vibed=true, reviewed=false. */ async (toolCallId, _toolName, _input, ctx) => {
       if (!candidate || candidate.proposal.toolCallId !== toolCallId)
         return undefined;
       pending = candidate.proposal;
@@ -339,12 +346,13 @@ export function registerProposalSession(
 
   pi.registerCommand("proposal", {
     description: "Accept or reject the current edit/write proposal",
+    /** Provenance: vibed=true, reviewed=false. */
     getArgumentCompletions(prefix) {
       return ["accept", "reject"]
-        .filter((value) => value.startsWith(prefix))
-        .map((value) => ({ value, label: value }));
+        .filter(/** Provenance: vibed=true, reviewed=false. */ (value) => value.startsWith(prefix))
+        .map(/** Provenance: vibed=true, reviewed=false. */ (value) => ({ value, label: value }));
     },
-    handler: async (args, ctx) => {
+    handler: /** Provenance: vibed=true, reviewed=false. */ async (args, ctx) => {
       await ctx.waitForIdle();
       const action = args.trim().toLowerCase();
       if (action !== "accept" && action !== "reject") {
@@ -382,7 +390,7 @@ export function registerProposalSession(
 
   pi.registerShortcut("alt+r", {
     description: "Review pending file proposal",
-    handler: async (ctx) => {
+    handler: /** Provenance: vibed=true, reviewed=false. */ async (ctx) => {
       if (!pending) {
         ctx.ui.notify("There is no pending proposal.", "info");
         return;
@@ -420,6 +428,7 @@ export function registerProposalSession(
     parameters: Type.Object({
       action: Type.Union([Type.Literal("accept"), Type.Literal("reject")]),
     }),
+    /** Provenance: vibed=true, reviewed=false. */
     async execute(_toolCallId, input, _signal, _onUpdate, ctx) {
       const resolved = await resolvePendingProposal(input.action, ctx);
       if (!resolved) {
@@ -440,7 +449,7 @@ export function registerProposalSession(
     },
   });
 
-  pi.on("session_start", async (_event, ctx) => {
+  pi.on("session_start", /** Provenance: vibed=true, reviewed=false. */ async (_event, ctx) => {
     try {
       await nvimOperations.reloadPreview?.();
     } catch (error) {
@@ -453,11 +462,11 @@ export function registerProposalSession(
     registerAuthorizer();
   });
 
-  pi.on("session_tree", async (_event, ctx) => {
+  pi.on("session_tree", /** Provenance: vibed=true, reviewed=false. */ async (_event, ctx) => {
     await synchronizeSessionProposal(ctx);
   });
 
-  pi.on("before_agent_start", (event) => {
+  pi.on("before_agent_start", /** Provenance: vibed=true, reviewed=false. */ (event) => {
     if (!pending) return;
     return {
       systemPrompt: `${event.systemPrompt}\n\nA file proposal is pending for ${pending.inputPath}. The file on disk is still unchanged. This conversation is scoped to reviewing that proposal, but answer any codebase questions the user needs in order to evaluate it. You may read and search freely. Use edit or write only on that same path to replace the proposal in place. Do not run tests, bash commands, or unrelated mutations until the user accepts or rejects the proposal. If the user clearly accepts or rejects it in conversation, call resolve_proposal with that action; do not infer resolution from ambiguous feedback.`,
@@ -465,7 +474,7 @@ export function registerProposalSession(
   });
 
   // Build and display edit/write proposals before the permission system runs.
-  pi.on("tool_call", async (event, ctx) => {
+  pi.on("tool_call", /** Provenance: vibed=true, reviewed=false. */ async (event, ctx) => {
     if ((pending || candidate) && event.toolName === "bash") {
       return {
         block: true,
@@ -534,7 +543,7 @@ export function registerProposalSession(
   });
 
   // Refresh only real immediate mutations, such as request-scoped Vibing Mode.
-  pi.on("tool_result", async (event, ctx) => {
+  pi.on("tool_result", /** Provenance: vibed=true, reviewed=false. */ async (event, ctx) => {
     if (
       event.isError ||
       (event.details as { proposalPending?: unknown } | undefined)
@@ -557,7 +566,7 @@ export function registerProposalSession(
   });
 
   // Keep a promoted proposal open; clean up rejected or failed candidates.
-  pi.on("tool_execution_end", async (event) => {
+  pi.on("tool_execution_end", /** Provenance: vibed=true, reviewed=false. */ async (event) => {
     if (!active || active.toolCallId !== event.toolCallId) return;
     if (pending?.toolCallId === event.toolCallId) return;
 
@@ -571,7 +580,7 @@ export function registerProposalSession(
     await restorePreview(staged?.previous);
   });
 
-  pi.on("session_shutdown", async () => {
+  pi.on("session_shutdown", /** Provenance: vibed=true, reviewed=false. */ async () => {
     if (active) await nvimOperations.closePreview(active.toolCallId);
     candidate = undefined;
     active = undefined;

@@ -3,6 +3,7 @@
 local M = {}
 
 ---Resolve a file path consistently across direct and symlinked buffer names.
+--- Provenance: vibed=true, reviewed=false.
 function M.canonical_file_path(path)
   if type(path) ~= "string" or path == "" then
     return nil
@@ -13,6 +14,7 @@ function M.canonical_file_path(path)
 end
 
 ---Return whether a normal editor window can display file-backed content.
+--- Provenance: vibed=true, reviewed=false.
 function M.is_normal_window(win)
   if not vim.api.nvim_win_is_valid(win) then
     return false
@@ -35,6 +37,7 @@ function M.is_normal_window(win)
 end
 
 ---Focus a Pi terminal window and resume input when requested.
+--- Provenance: vibed=true, reviewed=false.
 function M.focus_terminal(win, terminal_buffer_only)
   if not (win and vim.api.nvim_win_is_valid(win)) then
     return
@@ -48,6 +51,7 @@ function M.focus_terminal(win, terminal_buffer_only)
 end
 
 ---Run a callback, then restore the current window and terminal-input mode.
+--- Provenance: vibed=true, reviewed=false.
 function M.with_preserved_focus(callback, ignore_errors)
   local previous_win = vim.api.nvim_get_current_win()
   local previous_mode = vim.fn.mode():sub(1, 1)

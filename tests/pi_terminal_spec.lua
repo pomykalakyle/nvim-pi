@@ -1,4 +1,4 @@
--- Verifies conversation-owned Pi terminals and native Neovim tab navigation.
+-- Verifies workspace-owned Pi terminals and native Neovim tab navigation.
 
 local original_cwd = vim.fn.getcwd()
 local editor_buf = vim.api.nvim_get_current_buf()
@@ -7,6 +7,7 @@ vim.cmd("rightbelow vsplit")
 vim.api.nvim_win_set_buf(0, secondary_editor_buf)
 local requested = {}
 local terminals_by_id = {}
+local closed_preview_workspaces = {}
 
 --- Creates a fake Snacks terminal with independent process and window state.
 local function new_terminal()
@@ -60,6 +61,7 @@ Snacks = {
         terminal = new_terminal()
         terminals_by_id[id] = terminal
       end
+      vim.b[terminal.buf].terminal_job_pid = 9000 + opts.count
       table.insert(requested, { command = command, options = opts, terminal = terminal, created = created })
       return terminal, created
     end,
@@ -67,6 +69,7 @@ Snacks = {
 }
 
 local pi_terminal = require("config.pi.terminal")
+local pi_workspace = require("config.pi.workspace")
 local first_tab = vim.api.nvim_get_current_tabpage()
 local first = pi_terminal.open()
 local first_request = requested[1]
@@ -76,16 +79,16 @@ assert(first_request.options.count == 1)
 assert(first_request.options.win.wo.winbar == "%{get(b:, 'pi_terminal_title', 'Pi')}")
 assert(first.focus_count == 1)
 
--- Every Pi buffer receives terminal-local conversation controls.
+-- Every Pi buffer receives terminal-local workspace controls.
 local expected_mappings = {
   ["<F17>"] = "Pi: Abort and restore previous prompt",
   ["<F18>"] = "Pi: Scroll down half a page",
   ["<F19>"] = "Pi: Scroll up half a page",
-  ["["] = "Pi: Previous session",
-  ["]"] = "Pi: Next session",
-  ["\\n"] = "Pi: Add session",
-  ["\\x"] = "Pi: Close session",
-  ["\\1"] = "Pi: Session 1",
+  ["["] = "Pi: Previous workspace",
+  ["]"] = "Pi: Next workspace",
+  ["\\n"] = "Pi: Add workspace",
+  ["\\x"] = "Pi: Close workspace",
+  ["\\1"] = "Pi: Workspace 1",
 }
 vim.api.nvim_buf_call(first.buf, function()
   for lhs, description in pairs(expected_mappings) do
@@ -95,7 +98,7 @@ vim.api.nvim_buf_call(first.buf, function()
 end)
 assert(vim.b[first.buf].pi_terminal_keymaps_attached == true)
 
--- A fresh conversation copies the editor context into a distinct native tab.
+-- A fresh workspace copies the editor context into a distinct native tab.
 local second = pi_terminal.create_session(nil, {})
 local second_tab = vim.api.nvim_get_current_tabpage()
 local second_request = requested[2]
@@ -111,10 +114,21 @@ assert(second_request.options.count == 2)
 assert(second ~= first)
 assert(first.visible and second.visible)
 local worktree_name = vim.fn.fnamemodify(original_cwd, ":t")
-assert(vim.b[first.buf].pi_terminal_title == "Pi: " .. worktree_name .. " [1/2]")
-assert(vim.b[second.buf].pi_terminal_title == "Pi: " .. worktree_name .. " [2/2]")
+local first_title = ("Pi  [1 %s] | 2 %s"):format(worktree_name, worktree_name)
+local second_title = ("Pi  1 %s | [2 %s]"):format(worktree_name, worktree_name)
+assert(vim.b[first.buf].pi_terminal_title == first_title)
+assert(vim.b[second.buf].pi_terminal_title == second_title)
 
--- Native tab navigation updates the conversation used by global focus fallback.
+local title_win = vim.api.nvim_get_current_win()
+local title_buf = vim.api.nvim_win_get_buf(title_win)
+vim.api.nvim_win_set_buf(title_win, first.buf)
+vim.g.statusline_winid = title_win
+local plugin_spec = dofile(original_cwd .. "/lua/plugins/ai.lua")
+assert(pi_terminal.workspace_title(title_win) == first_title)
+assert(plugin_spec[2].opts.left[1].title() == first_title)
+vim.api.nvim_win_set_buf(title_win, title_buf)
+
+-- Native tab navigation updates the workspace used by global focus fallback.
 vim.api.nvim_set_current_tabpage(first_tab)
 local native_fallback_tab
 vim.cmd.tabnew()
@@ -155,8 +169,20 @@ assert(#sessions == 2)
 assert(sessions[1].tabpage == first_tab)
 assert(sessions[2].tabpage == second_tab)
 assert(sessions[1].root == sessions[2].root)
+assert(sessions[1].id ~= sessions[2].id)
+assert(vim.b[first.buf].pi_workspace_id == sessions[1].id)
+assert(vim.b[second.buf].pi_workspace_id == sessions[2].id)
+assert(pi_workspace.for_id(sessions[1].id).terminal == first)
+assert(pi_workspace.for_process(9001).terminal == first)
+assert(pi_workspace.for_process(9002).terminal == second)
 
--- One-time session arguments cannot replace the conversation in an occupied tab.
+package.loaded["config.pi.diff_preview"] = {
+  close_workspace = function(workspace_id)
+    closed_preview_workspaces[#closed_preview_workspaces + 1] = workspace_id
+  end,
+}
+
+-- One-time session arguments cannot replace the workspace in an occupied tab.
 local occupied_ok, occupied_err = pcall(pi_terminal.open, original_cwd, { "--session", "/tmp/other.jsonl" })
 assert(not occupied_ok)
 assert(tostring(occupied_err):find("already exists", 1, true))
@@ -168,8 +194,9 @@ vim.wait(50, function()
   return second.close_count == 1
 end)
 assert(second.close_count == 1)
+assert(closed_preview_workspaces[#closed_preview_workspaces] == sessions[2].id)
 assert(#pi_terminal.list_sessions() == 1)
-assert(vim.b[first.buf].pi_terminal_title == "Pi: " .. worktree_name .. " [1/1]")
+assert(vim.b[first.buf].pi_terminal_title == "Pi  [1 " .. worktree_name .. "]")
 local fallback_tab
 vim.cmd.tabnew()
 fallback_tab = vim.api.nvim_get_current_tabpage()
@@ -177,29 +204,32 @@ assert(pi_terminal.focus_existing())
 assert(vim.api.nvim_get_current_tabpage() == first_tab)
 vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(fallback_tab))
 
--- The explicit close command closes its conversation tab and selects its neighbor.
+-- The explicit close command closes its workspace tab and selects its neighbor.
 local replacement = pi_terminal.create_session(nil, {})
 local replacement_tab = vim.api.nvim_get_current_tabpage()
+local replacement_workspace_id = pi_terminal.list_sessions()[2].id
 assert(pi_terminal.stop())
 assert(replacement.close_count == 1)
+assert(closed_preview_workspaces[#closed_preview_workspaces] == replacement_workspace_id)
 assert(not vim.api.nvim_tabpage_is_valid(replacement_tab))
 assert(vim.api.nvim_get_current_tabpage() == first_tab)
 assert(pi_terminal.stop())
 assert(first.close_count == 1)
+assert(closed_preview_workspaces[#closed_preview_workspaces] == sessions[1].id)
 assert(not pi_terminal.stop())
+package.loaded["config.pi.diff_preview"] = nil
 
--- Editor mappings expose the same unified conversation navigation.
-local plugin_spec = dofile(original_cwd .. "/lua/plugins/ai.lua")
+-- Editor mappings expose the same unified workspace navigation.
 local mappings = {}
 for _, mapping in ipairs(plugin_spec[1].keys) do
   mappings[mapping[1]] = mapping
 end
-assert(mappings["<leader>ca"].desc == "Pi: Add session")
-assert(mappings["<leader>cx"].desc == "Pi: Close session")
-assert(mappings["<leader>cn"].desc == "Pi: Next session")
-assert(mappings["<leader>ce"].desc == "Pi: Previous session")
+assert(mappings["<leader>ca"].desc == "Pi: Add workspace")
+assert(mappings["<leader>cx"].desc == "Pi: Close workspace")
+assert(mappings["<leader>cn"].desc == "Pi: Next workspace")
+assert(mappings["<leader>ce"].desc == "Pi: Previous workspace")
 for index = 1, 9 do
-  assert(mappings["<leader>c" .. index].desc == "Pi: Session " .. index)
+  assert(mappings["<leader>c" .. index].desc == "Pi: Workspace " .. index)
 end
 
 print("pi-terminal-spec-ok")

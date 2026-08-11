@@ -23,24 +23,28 @@ const OPTIONS: Array<{
   { key: "t", label: "Talk about it", value: "talk" },
 ];
 
-/** Present the focused decision UI for one pending manual proposal. */
+/**
+ * Present the focused decision UI for one pending manual proposal.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function requestManualReview(
   ctx: ExtensionContext,
   summary: ReviewSummary,
 ): Promise<ReviewDecision> {
-  return ctx.ui.custom<ReviewDecision>((tui, theme, keybindings, done) => {
+  return ctx.ui.custom<ReviewDecision>(/** Provenance: vibed=true, reviewed=false. */ (tui, theme, keybindings, done) => {
     let selected = 0;
 
     // Rebuild from state on each render so navigation updates immediately.
     const component: Component = {
+      /** Provenance: vibed=true, reviewed=false. */
       render(width: number): string[] {
-        const box = new Box(1, 1, (text) => theme.bg("toolPendingBg", text));
+        const box = new Box(1, 1, /** Provenance: vibed=true, reviewed=false. */ (text) => theme.bg("toolPendingBg", text));
         const lines = [
           theme.fg("accent", theme.bold("Manual Review")),
           `${theme.fg("muted", "File:")} ${summary.path}`,
           `${theme.fg("muted", "Why:")} ${summary.justification}`,
           "",
-          ...OPTIONS.map((option, index) => {
+          ...OPTIONS.map(/** Provenance: vibed=true, reviewed=false. */ (option, index) => {
             const row =
               `${index === selected ? "▶" : " "} (${option.key}) ${option.label}`;
             return index === selected ? theme.fg("accent", row) : row;
@@ -51,6 +55,7 @@ export function requestManualReview(
         box.addChild(new Text(lines.join("\n"), 0, 0));
         return box.render(width);
       },
+      /** Provenance: vibed=true, reviewed=false. */
       handleInput(data: string): void {
         // Keep Pi's normal tool-detail toggle available while review owns focus.
         if (keybindings.matches(data, "app.tools.expand")) {
@@ -59,7 +64,7 @@ export function requestManualReview(
         }
 
         // Letter shortcuts commit only while this component owns keyboard focus.
-        const direct = OPTIONS.find((option) => matchesKey(data, option.key));
+        const direct = OPTIONS.find(/** Provenance: vibed=true, reviewed=false. */ (option) => matchesKey(data, option.key));
         if (direct) return done(direct.value);
         if (matchesKey(data, "escape")) return done("talk");
         if (matchesKey(data, "enter")) return done(OPTIONS[selected]!.value);
@@ -71,6 +76,7 @@ export function requestManualReview(
         else return;
         tui.requestRender();
       },
+      /** Provenance: vibed=true, reviewed=false. */
       invalidate(): void {},
     };
     return component;

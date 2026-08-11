@@ -20,7 +20,10 @@ export type FocusFailure = {
 
 export type FocusResult = FocusSuccess | FocusFailure;
 
-/** Return whether an RPC value has the required shape of a focus result. */
+/**
+ * Return whether an RPC value has the required shape of a focus result.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function isFocusResult(value: unknown): value is FocusResult {
   if (!value || typeof value !== "object" || !("ok" in value)) return false;
   const result = value as Record<string, unknown>;
@@ -38,7 +41,10 @@ export function isFocusResult(value: unknown): value is FocusResult {
     && typeof result.visible_end_line === "number";
 }
 
-/** Format a Neovim rejection as an actionable failed tool result. */
+/**
+ * Format a Neovim rejection as an actionable failed tool result.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function formatFocusFailure(result: FocusFailure): string {
   const lines = [result.message];
   if (result.restored) lines.push("The previous editor view was restored.");

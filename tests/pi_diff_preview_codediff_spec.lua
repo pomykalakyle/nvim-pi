@@ -14,6 +14,21 @@ vim.cmd("rightbelow vsplit")
 local terminal_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_win_set_buf(0, terminal_buf)
 vim.b[terminal_buf].pi_terminal = true
+vim.b[terminal_buf].terminal_job_pid = 4242
+
+local workspace = {
+  id = 1,
+  tabpage = vim.api.nvim_get_current_tabpage(),
+  terminal = { buf = terminal_buf },
+}
+package.loaded["config.pi.workspace"] = {
+  current = function()
+    return workspace
+  end,
+  for_process = function(pid)
+    return pid == 4242 and workspace or nil
+  end,
+}
 
 local function preview_windows()
   local windows = {}
@@ -36,6 +51,18 @@ local function proposed_window()
 end
 
 local preview = require("config.pi.diff_preview")
+local open_preview = preview.open
+
+---Associates every CodeDiff preview request with the fixture Pi process.
+preview.open = function(input)
+  input.requester_pid = 4242
+  return open_preview(input)
+end
+
+---Closes the fixture workspace's preview for one tool call.
+local function close_preview(tool_call_id)
+  return preview.close(4242, tool_call_id)
+end
 
 -- CodeDiff chooses the first duplicate as the insertion site. Validation must
 -- use that same mapping rather than accepting a different valid alignment.
@@ -74,7 +101,7 @@ assert(vim.api.nvim_win_call(repeated_unified_win, function()
   return vim.fn.foldclosed(2)
 end) == -1)
 assert(preview.toggle_layout() == nil)
-assert(preview.close("repeated-visible"))
+assert(close_preview("repeated-visible"))
 
 -- Both renderers keep their different pure-deletion anchors unfolded.
 local small_deletion_original = {}
@@ -107,7 +134,7 @@ local unified_height = vim.api.nvim_win_text_height(deletion_unified_win, {
   end_row = vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(deletion_unified_win)) - 1,
 }).all
 assert(unified_height >= 8)
-assert(preview.close("small-deletion"))
+assert(close_preview("small-deletion"))
 
 -- Virtual deleted lines count toward unified height and can force rejection.
 local deletion_original = {}
@@ -144,6 +171,6 @@ local compact = preview.open({
 })
 assert(compact.ok == true)
 assert(compact.preview_rows < compact.viewport_rows)
-assert(preview.close("large-file-small-change"))
+assert(close_preview("large-file-small-change"))
 
 print("pi-diff-preview-codediff-spec-ok")

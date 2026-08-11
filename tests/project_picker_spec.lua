@@ -1,12 +1,16 @@
 local original_cwd = vim.fn.getcwd()
 local original_stdpath = vim.fn.stdpath
 local original_kill = vim.uv.kill
+local original_cmd = vim.cmd
+local original_picker_env = vim.env.NVIM_PI_PICK_PROJECT
+local original_launcher_env = vim.env.NVIM_PI_LAUNCHER_PID
 local test_root = vim.fn.tempname()
 local state_root = test_root .. "/state"
 local active_repository = test_root .. "/active"
 local other_repository = test_root .. "/other"
 local launcher_directory = test_root .. "/home"
 local fake_pid = 424242
+local sent_signals = {}
 
 --- Runs one Git command and asserts that it succeeds.
 local function git(arguments)
@@ -30,7 +34,10 @@ vim.fn.stdpath = function(kind)
 end
 
 vim.uv.kill = function(pid, signal)
-  if pid == fake_pid and signal == 0 then
+  if pid == fake_pid then
+    if signal ~= 0 then
+      table.insert(sent_signals, signal)
+    end
     return 0
   end
   return original_kill(pid, signal)
@@ -52,9 +59,24 @@ assert(project_picker.bootstrap() == true)
 
 vim.cmd("cd " .. vim.fn.fnameescape(other_repository))
 assert(project_picker.bootstrap() == false)
+vim.env.NVIM_PI_PICK_PROJECT = "1"
+assert(project_picker.bootstrap() == true)
+vim.env.NVIM_PI_PICK_PROJECT = nil
 
+assert(project_picker.restart_to_picker() == false)
+vim.env.NVIM_PI_LAUNCHER_PID = tostring(fake_pid)
+vim.cmd = function(command)
+  assert(command == "qall")
+  vim.api.nvim_exec_autocmds("VimLeavePre", { group = "user_project_restart" })
+end
+assert(project_picker.restart_to_picker() == true)
+assert(sent_signals[#sent_signals] == vim.uv.constants.SIGUSR1)
+
+vim.cmd = original_cmd
 vim.uv.kill = original_kill
 vim.fn.stdpath = original_stdpath
+vim.env.NVIM_PI_PICK_PROJECT = original_picker_env
+vim.env.NVIM_PI_LAUNCHER_PID = original_launcher_env
 vim.cmd("cd " .. vim.fn.fnameescape(original_cwd))
 vim.fn.delete(test_root, "rf")
 print("project-picker-spec-ok")

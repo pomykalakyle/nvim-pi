@@ -15,7 +15,10 @@ type PendingImage = {
   data: string;
 };
 
-/** Load the native clipboard dependency without preventing Pi from starting on failure. */
+/**
+ * Load the native clipboard dependency without preventing Pi from starting on failure.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function loadClipboard(): ClipboardModule | undefined {
   try {
     return require("@mariozechner/clipboard") as ClipboardModule;
@@ -24,17 +27,23 @@ function loadClipboard(): ClipboardModule | undefined {
   }
 }
 
-/** Return pending images referenced by the draft in their first-occurrence order. */
+/**
+ * Return pending images referenced by the draft in their first-occurrence order.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function referencedImages(text: string, pending: Map<string, PendingImage>): PendingImage[] {
   const matches = [...pending.values()]
-    .map((image) => ({ image, index: text.indexOf(image.marker) }))
-    .filter((match) => match.index >= 0)
-    .sort((left, right) => left.index - right.index);
+    .map(/** Provenance: vibed=true, reviewed=false. */ (image) => ({ image, index: text.indexOf(image.marker) }))
+    .filter(/** Provenance: vibed=true, reviewed=false. */ (match) => match.index >= 0)
+    .sort(/** Provenance: vibed=true, reviewed=false. */ (left, right) => left.index - right.index);
 
-  return matches.map((match) => match.image);
+  return matches.map(/** Provenance: vibed=true, reviewed=false. */ (match) => match.image);
 }
 
-/** Remove attachment labels while leaving unrelated draft text unchanged. */
+/**
+ * Remove attachment labels while leaving unrelated draft text unchanged.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function removeMarkers(text: string, images: PendingImage[]): string {
   let cleaned = text;
   for (const image of images) {
@@ -43,21 +52,24 @@ function removeMarkers(text: string, images: PendingImage[]): string {
   return cleaned.trim();
 }
 
-/** Replace Pi's temporary image paths with compact, in-memory attachments. */
+/**
+ * Replace Pi's temporary image paths with compact, in-memory attachments.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export default function cleanImagePaste(pi: ExtensionAPI): void {
   const clipboard = loadClipboard();
   const pending = new Map<string, PendingImage>();
   let nextImageNumber = 1;
 
   /** Clear attachments that belong to the current draft or session. */
-  const reset = () => {
+  const reset = /** Provenance: vibed=true, reviewed=false. */ () => {
     pending.clear();
     nextImageNumber = 1;
   };
 
   pi.registerShortcut("ctrl+v", {
     description: "Attach clipboard image with a compact label",
-    handler: async (ctx) => {
+    handler: /** Provenance: vibed=true, reviewed=false. */ async (ctx) => {
       if (!ctx.hasUI) return;
       if (!clipboard) {
         ctx.ui.notify("Image paste is unavailable: clipboard support did not load.", "error");
@@ -91,7 +103,7 @@ export default function cleanImagePaste(pi: ExtensionAPI): void {
     },
   });
 
-  pi.on("input", (event) => {
+  pi.on("input", /** Provenance: vibed=true, reviewed=false. */ (event) => {
     if (event.source === "extension" || pending.size === 0) {
       return { action: "continue" as const };
     }
@@ -107,7 +119,7 @@ export default function cleanImagePaste(pi: ExtensionAPI): void {
       text: removeMarkers(event.text, selected),
       images: [
         ...(event.images ?? []),
-        ...selected.map((image) => ({
+        ...selected.map(/** Provenance: vibed=true, reviewed=false. */ (image) => ({
           type: "image" as const,
           mimeType: IMAGE_MIME_TYPE,
           data: image.data,

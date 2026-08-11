@@ -2,15 +2,19 @@ import { attach } from "neovim";
 
 const silentLogger = {
   level: "silent",
+  /** Provenance: vibed=true, reviewed=false. */
   info() {
     return this;
   },
+  /** Provenance: vibed=true, reviewed=false. */
   warn() {
     return this;
   },
+  /** Provenance: vibed=true, reviewed=false. */
   error() {
     return this;
   },
+  /** Provenance: vibed=true, reviewed=false. */
   debug() {
     return this;
   },
@@ -22,7 +26,10 @@ type HandoffResult = {
   worktree?: string;
 };
 
-/** Tell the parent Neovim instance that the handed-off Pi session is ready. */
+/**
+ * Tell the parent Neovim instance that the handed-off Pi session is ready.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export async function acknowledgeWorktreeHandoff(token: string): Promise<void> {
   const socket = process.env.NVIM;
   if (!socket) throw new Error("Neovim socket address is unavailable");
@@ -39,7 +46,10 @@ export async function acknowledgeWorktreeHandoff(token: string): Promise<void> {
   }
 }
 
-/** Ask the parent Neovim instance to open a prepared Pi session. */
+/**
+ * Ask the parent Neovim instance to open a prepared Pi session.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export async function openWorktreeSession(worktree: string, sessionFile: string): Promise<void> {
   const socket = process.env.NVIM;
   if (!socket) throw new Error("Neovim socket address is unavailable");

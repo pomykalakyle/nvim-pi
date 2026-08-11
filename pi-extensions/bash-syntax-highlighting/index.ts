@@ -5,6 +5,7 @@ import {
 import { Text } from "@earendil-works/pi-tui";
 import { highlightBashCommand } from "./highlighter.ts";
 
+/** Provenance: vibed=true, reviewed=false. */
 export default function bashSyntaxHighlighting(pi: ExtensionAPI): void {
   const base = createBashToolDefinition(process.cwd());
 
@@ -12,6 +13,7 @@ export default function bashSyntaxHighlighting(pi: ExtensionAPI): void {
     ...base,
 
     // Keep execution anchored to Pi's live cwd instead of the extension-load cwd.
+    /** Provenance: vibed=true, reviewed=false. */
     execute(toolCallId, params, signal, onUpdate, ctx) {
       return createBashToolDefinition(ctx.cwd).execute(
         toolCallId,
@@ -22,6 +24,7 @@ export default function bashSyntaxHighlighting(pi: ExtensionAPI): void {
       );
     },
 
+    /** Provenance: vibed=true, reviewed=false. */
     renderCall(args, theme, context) {
       const state = context.state;
       if (context.executionStarted && state.startedAt === undefined) {

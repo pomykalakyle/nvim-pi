@@ -8,6 +8,7 @@ return {
       "Shatur/neovim-session-manager",
       "folke/snacks.nvim",
     },
+    --[[ Provenance: vibed=true, reviewed=false. ]]
     init = function()
       vim.opt.sessionoptions:append("globals")
     end,
@@ -43,6 +44,7 @@ return {
         type = "snacks",
       },
     },
+    --[[ Provenance: vibed=true, reviewed=false. ]]
     config = function(_, opts)
       require("neovim-project").setup(opts)
       require("config.project_picker.picker").install()
@@ -50,17 +52,11 @@ return {
     keys = {
       {
         "<leader>fp",
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.project_picker.picker").pick_project(false)
+          require("config.project_picker.picker").restart_to_picker()
         end,
         desc = "Projects",
-      },
-      {
-        "<leader>fP",
-        function()
-          require("config.project_picker.picker").pick_project(true)
-        end,
-        desc = "Project History",
       },
     },
   },

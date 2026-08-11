@@ -6,7 +6,10 @@ import type { Proposal } from "./proposal.js";
 
 export const PROPOSAL_ENTRY = "nvim-pi-pending-proposal";
 
-/** Persist the current proposal state without adding it to model context. */
+/**
+ * Persist the current proposal state without adding it to model context.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function persistPendingProposal(
   pi: ExtensionAPI,
   pending: Proposal | undefined,
@@ -18,6 +21,7 @@ export function persistPendingProposal(
   }
 }
 
+/** Provenance: vibed=true, reviewed=false. */
 function isProposal(value: unknown): value is Proposal {
   if (!value || typeof value !== "object") return false;
   const proposal = value as Partial<Proposal>;
@@ -41,7 +45,10 @@ function isProposal(value: unknown): value is Proposal {
   );
 }
 
-/** Add fields absent from proposals persisted by older extension versions. */
+/**
+ * Add fields absent from proposals persisted by older extension versions.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function normalizeProposal(value: unknown): Proposal | undefined {
   let normalized = value;
   if (
@@ -57,7 +64,10 @@ function normalizeProposal(value: unknown): Proposal | undefined {
   return isProposal(normalized) ? normalized : undefined;
 }
 
-/** Reconstruct the latest pending proposal on the active session branch. */
+/**
+ * Reconstruct the latest pending proposal on the active session branch.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function restorePendingProposal(
   ctx: ExtensionContext,
 ): Proposal | undefined {

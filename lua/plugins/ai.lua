@@ -5,8 +5,9 @@ return {
       {
         "<F16>",
         --- Focuses Pi before Wispr Flow begins or finishes dictation.
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").focus_existing()
+          require("config.pi.workspace").focus_existing()
         end,
         mode = { "n", "i", "v", "t" },
         desc = "Pi: Focus for dictation",
@@ -14,56 +15,63 @@ return {
       {
         "<leader>cc",
         --- Toggles the interactive Pi terminal.
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").toggle()
+          require("config.pi.workspace").toggle()
         end,
         desc = "Pi: Toggle",
       },
       {
         "<leader>cf",
         --- Opens and focuses the interactive Pi terminal.
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").focus()
+          require("config.pi.workspace").focus()
         end,
         desc = "Pi: Focus",
       },
       {
         "<leader>ca",
-        --- Creates a fresh conversation in the current worktree.
+        --- Creates a fresh workspace in the current worktree.
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").create_session(nil, {})
+          require("config.pi.workspace").create(nil, {})
         end,
-        desc = "Pi: Add session",
+        desc = "Pi: Add workspace",
       },
       {
         "<leader>cx",
-        --- Stops the active conversation and selects a neighboring session.
+        --- Stops the active workspace and selects a neighboring workspace.
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").stop()
+          require("config.pi.workspace").stop()
         end,
-        desc = "Pi: Close session",
+        desc = "Pi: Close workspace",
       },
       {
         "<leader>cn",
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").cycle_session(1)
+          require("config.pi.workspace").cycle(1)
         end,
-        desc = "Pi: Next session",
+        desc = "Pi: Next workspace",
       },
       {
         "<leader>ce",
+        --[[ Provenance: vibed=true, reviewed=false. ]]
         function()
-          require("config.pi.terminal").cycle_session(-1)
+          require("config.pi.workspace").cycle(-1)
         end,
-        desc = "Pi: Previous session",
+        desc = "Pi: Previous workspace",
       },
-      unpack(vim.tbl_map(function(index)
+      unpack(vim.tbl_map(--[[ Provenance: vibed=true, reviewed=false. ]] function(index)
         return {
           "<leader>c" .. index,
+          --[[ Provenance: vibed=true, reviewed=false. ]]
           function()
-            require("config.pi.terminal").switch_to_session(index)
+            require("config.pi.workspace").switch(index)
           end,
-          desc = "Pi: Session " .. index,
+          desc = "Pi: Workspace " .. index,
         }
       end, vim.fn.range(1, 9))),
     },
@@ -83,9 +91,13 @@ return {
       },
       left = {
         {
-          title = "Pi",
+          --[[ Provenance: vibed=true, reviewed=false. ]]
+          title = function()
+            return require("config.pi.workspace").title(vim.g.statusline_winid)
+          end,
           ft = "snacks_terminal",
           --- Matches only the interactive Pi terminal buffer.
+          --[[ Provenance: vibed=true, reviewed=false. ]]
           filter = function(buf)
             return vim.b[buf].pi_terminal == true
           end,
@@ -95,7 +107,7 @@ return {
     },
   },
 
-  -- Reserve Pi's conversation shortcuts instead of LazyVim's LSP mappings.
+  -- Reserve Pi's workspace shortcuts instead of LazyVim's LSP mappings.
   {
     "neovim/nvim-lspconfig",
     opts = {

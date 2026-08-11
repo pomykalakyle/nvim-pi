@@ -10,15 +10,19 @@ import {
 
 const silentLogger = {
   level: "silent",
+  /** Provenance: vibed=true, reviewed=false. */
   info() {
     return this;
   },
+  /** Provenance: vibed=true, reviewed=false. */
   warn() {
     return this;
   },
+  /** Provenance: vibed=true, reviewed=false. */
   error() {
     return this;
   },
+  /** Provenance: vibed=true, reviewed=false. */
   debug() {
     return this;
   },
@@ -26,23 +30,32 @@ const silentLogger = {
 
 let focusQueue: Promise<void> = Promise.resolve();
 
-/** Serialize editor focus calls because Pi may execute sibling tool calls concurrently. */
+/**
+ * Serialize editor focus calls because Pi may execute sibling tool calls concurrently.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function enqueueFocus<T>(operation: () => Promise<T>): Promise<T> {
   const result = focusQueue.then(operation, operation);
   focusQueue = result.then(
-    () => undefined,
-    () => undefined,
+    /** Provenance: vibed=true, reviewed=false. */ () => undefined,
+    /** Provenance: vibed=true, reviewed=false. */ () => undefined,
   );
   return result;
 }
 
-/** Resolve a tool path against Pi's working directory and normalize @-prefixed inputs. */
+/**
+ * Resolve a tool path against Pi's working directory and normalize @-prefixed inputs.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function absolutePath(cwd: string, path: string): string {
   const normalized = path.startsWith("@") ? path.slice(1) : path;
   return isAbsolute(normalized) ? resolve(normalized) : resolve(cwd, normalized);
 }
 
-/** Execute Lua through the parent Neovim instance's MessagePack-RPC socket. */
+/**
+ * Execute Lua through the parent Neovim instance's MessagePack-RPC socket.
+ * Provenance: vibed=true, reviewed=false.
+ */
 async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
   const socket = process.env.NVIM;
   if (!socket) throw new Error("Neovim socket address is unavailable");
@@ -55,7 +68,10 @@ async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
   }
 }
 
-/** Ask Neovim to focus an inclusive file range beside this exact Pi process. */
+/**
+ * Ask Neovim to focus an inclusive file range beside this exact Pi process.
+ * Provenance: vibed=true, reviewed=false.
+ */
 async function focusFile(
   cwd: string,
   path: string,
@@ -78,7 +94,10 @@ async function focusFile(
   return result;
 }
 
-/** Remove temporary focus styling when this Pi session shuts down or reloads. */
+/**
+ * Remove temporary focus styling when this Pi session shuts down or reloads.
+ * Provenance: vibed=true, reviewed=false.
+ */
 async function clearFileFocus(): Promise<void> {
   await callNeovim(
     'return require("config.pi.file_focus").clear(...)',
@@ -86,7 +105,10 @@ async function clearFileFocus(): Promise<void> {
   );
 }
 
-/** Register the agent-facing tool while Neovim retains all layout authority. */
+/**
+ * Register the agent-facing tool while Neovim retains all layout authority.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export default function neovimFileFocus(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "focus_file",
@@ -99,6 +121,7 @@ export default function neovimFileFocus(pi: ExtensionAPI): void {
       start_line: Type.Integer({ minimum: 1, description: "First line to focus, inclusive" }),
       end_line: Type.Integer({ minimum: 1, description: "Last line to focus, inclusive" }),
     }),
+    /** Provenance: vibed=true, reviewed=false. */
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       if (signal?.aborted) throw new Error("focus_file was cancelled");
 
@@ -107,7 +130,7 @@ export default function neovimFileFocus(pi: ExtensionAPI): void {
         details: {},
       });
 
-      const result = await enqueueFocus(() =>
+      const result = await enqueueFocus(/** Provenance: vibed=true, reviewed=false. */ () =>
         focusFile(ctx.cwd, params.path, params.start_line, params.end_line)
       );
       if (result.ok === false) throw new Error(formatFocusFailure(result));
@@ -124,8 +147,8 @@ export default function neovimFileFocus(pi: ExtensionAPI): void {
     },
   });
 
-  pi.on("session_shutdown", () => {
-    void clearFileFocus().catch(() => {
+  pi.on("session_shutdown", /** Provenance: vibed=true, reviewed=false. */ () => {
+    void clearFileFocus().catch(/** Provenance: vibed=true, reviewed=false. */ () => {
       // A disappearing Neovim instance must not interfere with Pi shutdown.
     });
   });

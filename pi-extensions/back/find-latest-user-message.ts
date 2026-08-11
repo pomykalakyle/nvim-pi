@@ -6,7 +6,10 @@ export interface BranchEntryLike {
   };
 }
 
-/** Find the most recent user-message entry on an active session branch. */
+/**
+ * Find the most recent user-message entry on an active session branch.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function findLatestUserMessageId(
   entries: readonly BranchEntryLike[],
 ): string | undefined {

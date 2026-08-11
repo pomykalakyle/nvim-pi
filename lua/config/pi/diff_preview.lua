@@ -4,7 +4,7 @@ local M = {}
 
 local editor = require("config.editor")
 
-local active_display = nil
+local active_displays = {}
 local preferred_layout = vim.g.pi_diff_preview_layout == "side_by_side" and "side_by_side" or "unified"
 local restored_window_options = {
   "wrap",
@@ -23,6 +23,7 @@ local restored_window_options = {
 }
 
 ---Remember the selected layout for subsequent previews in this Neovim session.
+--- Provenance: vibed=true, reviewed=false.
 local function set_preferred_layout(layout)
   preferred_layout = layout
   vim.g.pi_diff_preview_layout = layout
@@ -30,8 +31,12 @@ end
 
 ---Return whether a decoded RPC argument has every required proposal field.
 ---Reject malformed values before they can affect the editor layout.
+--- Provenance: vibed=true, reviewed=false.
 local function is_valid_payload(payload)
   if type(payload) ~= "table" then
+    return false
+  end
+  if type(payload.requester_pid) ~= "number" then
     return false
   end
   for _, key in ipairs({ "tool_call_id", "file_path", "old_content", "new_content" }) do
@@ -60,6 +65,7 @@ end
 
 ---Split text into lines accepted by nvim_buf_set_lines().
 ---Represent empty text as the single empty line required by a buffer.
+--- Provenance: vibed=true, reviewed=false.
 local function split_lines(text)
   if text == "" then
     return { "" }
@@ -73,6 +79,7 @@ local function split_lines(text)
 end
 
 ---Load CodeDiff before accessing its internal computation and rendering modules.
+--- Provenance: vibed=true, reviewed=false.
 local function load_codediff_module(module_name)
   local lazy_ok, lazy = pcall(require, "lazy")
   if lazy_ok then
@@ -90,9 +97,10 @@ local function load_codediff_module(module_name)
 end
 
 ---Sort proposed-file ranges and combine overlaps or gaps too small to fold.
+--- Provenance: vibed=true, reviewed=false.
 local function normalize_ranges(ranges, line_count)
   local sorted = vim.deepcopy(ranges)
-  table.sort(sorted, function(left, right)
+  table.sort(sorted, --[[ Provenance: vibed=true, reviewed=false. ]] function(left, right)
     return left.start_line < right.start_line
       or (left.start_line == right.start_line and left.end_line < right.end_line)
   end)
@@ -131,6 +139,7 @@ local function normalize_ranges(ranges, line_count)
   return normalized
 end
 
+--- Provenance: vibed=true, reviewed=false.
 local function range_contains(ranges, start_line, end_line)
   for _, range in ipairs(ranges) do
     if range.start_line <= start_line and range.end_line >= end_line then
@@ -140,6 +149,7 @@ local function range_contains(ranges, start_line, end_line)
   return false
 end
 
+--- Provenance: vibed=true, reviewed=false.
 local function flags_to_ranges(flags, line_count)
   local ranges = {}
   local start_line = nil
@@ -156,6 +166,7 @@ end
 
 ---Validate that the requested proposed-file ranges expose every computed hunk.
 ---Also map visible unchanged and changed lines onto the original buffer.
+--- Provenance: vibed=true, reviewed=false.
 local function build_visible_ranges(payload)
   local original_lines = split_lines(payload.old_content)
   local proposed_lines = split_lines(payload.new_content)
@@ -277,41 +288,43 @@ end
 
 ---Return whether a window belongs to the active Pi preview.
 ---Window markers distinguish previews from ordinary editor splits.
+--- Provenance: vibed=true, reviewed=false.
 local function is_preview_window(win)
   local ok, value = pcall(vim.api.nvim_win_get_var, win, "pi_diff_preview")
   return ok and value == true
 end
 
----Return the visible Pi terminal window or fail before preview construction.
----The terminal buffer marker identifies the exact embedded Pi instance.
-local function require_pi_terminal_window()
-  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    if vim.b[buf].pi_terminal == true then
+---Returns the visible Pi terminal window owned by a workspace.
+--- Provenance: vibed=true, reviewed=false.
+local function require_pi_terminal_window(workspace)
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(workspace.tabpage)) do
+    if vim.api.nvim_win_get_buf(win) == workspace.terminal.buf then
       return win
     end
   end
 
-  error("Pi terminal is not visible in the current tab")
+  error("Pi terminal is not visible in the requesting workspace")
 end
 
 ---Return whether a window can host the preview.
 ---Only normal, non-floating editor windows are eligible.
+--- Provenance: vibed=true, reviewed=false.
 local function is_review_target(win)
   return not is_preview_window(win) and editor.is_normal_window(win)
 end
 
 ---Return the leftmost normal editor window.
 ---Stable screen-position ordering keeps preview placement predictable.
-local function find_review_target()
+--- Provenance: vibed=true, reviewed=false.
+local function find_review_target(tabpage)
   local candidates = {}
-  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tabpage)) do
     if is_review_target(win) then
       candidates[#candidates + 1] = win
     end
   end
 
-  table.sort(candidates, function(left, right)
+  table.sort(candidates, --[[ Provenance: vibed=true, reviewed=false. ]] function(left, right)
     local left_pos = vim.fn.win_screenpos(left)
     local right_pos = vim.fn.win_screenpos(right)
     if left_pos[1] == right_pos[1] then
@@ -325,6 +338,7 @@ end
 
 ---Create one read-only scratch buffer for the preview.
 ---Infer the target filetype so both diff sides retain syntax highlighting.
+--- Provenance: vibed=true, reviewed=false.
 local function make_preview_buffer(name, file_path, content)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(buf, name)
@@ -355,6 +369,7 @@ end
 
 ---Reload loaded buffers for a file changed successfully by a Pi tool.
 ---Preserve unsaved editor changes and warn instead of overwriting them.
+--- Provenance: vibed=true, reviewed=false.
 function M.refresh(file_path)
   local target_path = editor.canonical_file_path(file_path)
   if not target_path then
@@ -383,6 +398,7 @@ function M.refresh(file_path)
 end
 
 ---Load CodeDiff's inline renderer after the shared diff has been computed.
+--- Provenance: vibed=true, reviewed=false.
 local function load_inline_renderer()
   local inline, load_error = load_codediff_module("codediff.ui.inline")
   return inline, load_error
@@ -390,6 +406,7 @@ end
 
 ---Remove the virtual lines and highlights added by CodeDiff.
 ---The underlying proposed text stays untouched.
+--- Provenance: vibed=true, reviewed=false.
 local function clear_inline_preview(preview)
   if preview.inline_renderer and vim.api.nvim_buf_is_valid(preview.proposed_buf) then
     pcall(preview.inline_renderer.clear, preview.proposed_buf)
@@ -398,6 +415,7 @@ end
 
 ---Annotate the proposed buffer with additions, changes, and virtual deleted lines.
 ---This prepares the buffer for unified display but does not change any windows.
+--- Provenance: vibed=true, reviewed=false.
 local function render_inline_preview(preview)
   local inline, load_error = load_inline_renderer()
   if not inline then
@@ -417,6 +435,7 @@ local function render_inline_preview(preview)
 end
 
 ---Remove CodeDiff's side-by-side highlights, filler rows, and scroll binding.
+--- Provenance: vibed=true, reviewed=false.
 local function clear_side_by_side_preview(preview)
   local lifecycle = load_codediff_module("codediff.ui.lifecycle")
   if lifecycle then
@@ -434,6 +453,7 @@ local function clear_side_by_side_preview(preview)
 end
 
 ---Render CodeDiff's paired-buffer highlights and virtual filler rows.
+--- Provenance: vibed=true, reviewed=false.
 local function render_side_by_side_preview(preview)
   local core, core_error = load_codediff_module("codediff.ui.core")
   if not core then
@@ -446,6 +466,7 @@ local function render_side_by_side_preview(preview)
 end
 
 ---Bind scrolling after folds have changed the two panes' visible structure.
+--- Provenance: vibed=true, reviewed=false.
 local function synchronize_side_by_side_preview(preview)
   local scroll, scroll_error = load_codediff_module("codediff.ui.scroll")
   if not scroll then
@@ -456,6 +477,7 @@ local function synchronize_side_by_side_preview(preview)
   scroll.resync(tabpage, preview.proposed_win)
 end
 
+--- Provenance: vibed=true, reviewed=false.
 local function capture_window_options(win)
   local options = {}
   for _, name in ipairs(restored_window_options) do
@@ -464,6 +486,7 @@ local function capture_window_options(win)
   return options
 end
 
+--- Provenance: vibed=true, reviewed=false.
 local function restore_window_options(win, options)
   for name, value in pairs(options or {}) do
     vim.wo[win][name] = value
@@ -471,6 +494,7 @@ local function restore_window_options(win, options)
 end
 
 ---Capture a window's cursor and scroll state without moving focus to it.
+--- Provenance: vibed=true, reviewed=false.
 local function save_view(win)
   if not win or not vim.api.nvim_win_is_valid(win) then
     return nil
@@ -479,9 +503,10 @@ local function save_view(win)
 end
 
 ---Restore a captured cursor and scroll state without moving focus.
+--- Provenance: vibed=true, reviewed=false.
 local function restore_view(win, view)
   if win and view and vim.api.nvim_win_is_valid(win) then
-    pcall(vim.api.nvim_win_call, win, function()
+    pcall(vim.api.nvim_win_call, win, --[[ Provenance: vibed=true, reviewed=false. ]] function()
       vim.fn.winrestview(view)
     end)
   end
@@ -489,6 +514,7 @@ end
 
 ---Mark and label a window as part of the active preview.
 ---Buffer options enforce read-only behavior; these options control its presentation.
+--- Provenance: vibed=true, reviewed=false.
 local function configure_window(preview, win, label)
   vim.api.nvim_win_set_var(win, "pi_diff_preview", true)
   vim.wo[win].wrap = true
@@ -502,12 +528,13 @@ end
 
 ---Close every manual fold outside the model-selected visible ranges.
 ---The complete scratch buffer remains available so the user can open any fold.
+--- Provenance: vibed=true, reviewed=false.
 local function apply_preview_folds(win, ranges)
   if not win or not vim.api.nvim_win_is_valid(win) then
     return
   end
 
-  vim.api.nvim_win_call(win, function()
+  vim.api.nvim_win_call(win, --[[ Provenance: vibed=true, reviewed=false. ]] function()
     vim.wo.foldenable = true
     vim.wo.foldmethod = "manual"
     vim.wo.foldlevel = 0
@@ -532,6 +559,7 @@ end
 
 ---Return the rendered height of the tallest preview pane and its viewport.
 ---nvim_win_text_height includes closed folds, diff filler, and virtual lines.
+--- Provenance: vibed=true, reviewed=false.
 local function preview_geometry(preview)
   local viewport_rows = nil
   local preview_rows = 0
@@ -548,6 +576,7 @@ local function preview_geometry(preview)
 end
 
 ---Show the proposal with CodeDiff's paired-buffer renderer.
+--- Provenance: vibed=true, reviewed=false.
 local function show_side_by_side(preview)
   clear_inline_preview(preview)
   clear_side_by_side_preview(preview)
@@ -572,6 +601,7 @@ end
 
 ---Collapse the two-window native diff into one annotated proposed buffer.
 ---Rendering and layout changes stay separate so rendering failures leave the split intact.
+--- Provenance: vibed=true, reviewed=false.
 local function show_unified(preview)
   clear_side_by_side_preview(preview)
   render_inline_preview(preview)
@@ -597,8 +627,10 @@ local function show_unified(preview)
 end
 
 ---Toggle the active proposal between side-by-side and unified layouts.
+--- Provenance: vibed=true, reviewed=false.
 function M.toggle_layout()
-  local display = active_display
+  local workspace = require("config.pi.workspace").current()
+  local display = workspace and active_displays[workspace.id]
   local preview = display and display.preview
   if not preview or not preview.before_win or not vim.api.nvim_win_is_valid(preview.before_win) then
     error("Pi diff preview: no active preview", 0)
@@ -607,7 +639,7 @@ function M.toggle_layout()
   local original_win = vim.api.nvim_get_current_win()
   local focused_proposed = original_win == preview.proposed_win
   local focused_outside_preview = original_win ~= preview.before_win and not focused_proposed
-  local toggled, toggle_error = pcall(function()
+  local toggled, toggle_error = pcall(--[[ Provenance: vibed=true, reviewed=false. ]] function()
     if preview.layout == "unified" then
       preview.unified_view = save_view(preview.before_win)
       show_side_by_side(preview)
@@ -633,10 +665,10 @@ function M.toggle_layout()
   end
 end
 
----Close the active preview and restore the replaced editor buffer.
----An optional tool-call ID prevents stale cleanup from closing a newer preview.
-function M.close(tool_call_id)
-  local display = active_display
+---Closes one workspace's preview and restores its replaced editor buffer.
+--- Provenance: vibed=true, reviewed=false.
+local function close_display(workspace, tool_call_id)
+  local display = active_displays[workspace.id]
   if not display then
     return true
   end
@@ -644,20 +676,18 @@ function M.close(tool_call_id)
     return false
   end
 
-  -- Claim this display before cleanup so another close cannot process it again.
-  active_display = nil
+  -- Claim this workspace's display before cleanup so another close cannot process it again.
+  active_displays[workspace.id] = nil
   local preview = display.preview
   local restore = display.restore
 
   clear_inline_preview(preview)
   clear_side_by_side_preview(preview)
 
-  -- Close the extra split created by the side-by-side layout.
   if preview.proposed_win and vim.api.nvim_win_is_valid(preview.proposed_win) then
     pcall(vim.api.nvim_win_close, preview.proposed_win, true)
   end
 
-  -- Put the real editor buffer and its previous view back in the reused window.
   if preview.before_win and vim.api.nvim_win_is_valid(preview.before_win) then
     vim.api.nvim_win_set_var(preview.before_win, "pi_diff_preview", false)
     vim.api.nvim_win_set_buf(preview.before_win, restore.buf)
@@ -665,22 +695,69 @@ function M.close(tool_call_id)
     restore_view(preview.before_win, restore.view)
   end
 
-  -- Hidden preview buffers use "hide" so layouts can toggle; delete them explicitly.
   for _, buf in ipairs({ preview.before_buf, preview.proposed_buf }) do
     if buf and vim.api.nvim_buf_is_valid(buf) then
       pcall(vim.api.nvim_buf_delete, buf, { force = true })
     end
   end
-
-  editor.focus_terminal(display.pi_terminal_win)
   return true
 end
 
----Open a read-only preview in the preferred layout and return focus to Pi.
----Pi retains approval control while the editor displays both proposal versions.
+---Closes the preview owned by the requesting Pi process.
+--- Provenance: vibed=true, reviewed=false.
+function M.close(requester_pid, tool_call_id)
+  local workspace = require("config.pi.workspace").for_process(requester_pid)
+  if not workspace then
+    for _, display in pairs(active_displays) do
+      if display.requester_pid == requester_pid then
+        workspace = display.workspace
+        break
+      end
+    end
+  end
+  if not workspace then
+    return false
+  end
+
+  local closed = close_display(workspace, tool_call_id)
+  if closed and vim.api.nvim_get_current_tabpage() == workspace.tabpage then
+    local found, terminal_win = pcall(require_pi_terminal_window, workspace)
+    if found then
+      editor.focus_terminal(terminal_win)
+    end
+  end
+  return closed
+end
+
+---Closes the preview owned by one workspace during workspace teardown.
+--- Provenance: vibed=true, reviewed=false.
+function M.close_workspace(workspace_id, tool_call_id)
+  local display = active_displays[workspace_id]
+  return display and close_display(display.workspace, tool_call_id) or true
+end
+
+---Reports whether reloading this shared module would discard a workspace preview.
+--- Provenance: vibed=true, reviewed=false.
+function M.has_active_previews()
+  return next(active_displays) ~= nil
+end
+
+---Reloads the shared preview module only when no workspace owns active state.
+--- Provenance: vibed=true, reviewed=false.
+function M.reload_if_idle()
+  if M.has_active_previews() then
+    return false
+  end
+  package.loaded["config.pi.diff_preview"] = nil
+  require("config.pi.diff_preview")
+  return true
+end
+
+---Opens a read-only preview in the requesting Pi workspace and returns focus to its terminal.
+--- Provenance: vibed=true, reviewed=false.
 function M.open(payload)
   if not is_valid_payload(payload) then
-    local message = "Pi diff preview requires valid nonempty unfolded_ranges with start_line <= end_line"
+    local message = "Pi diff preview requires a requester process and valid nonempty unfolded_ranges"
     vim.notify(message, vim.log.levels.ERROR)
     return {
       ok = false,
@@ -689,13 +766,20 @@ function M.open(payload)
     }
   end
 
-  local pi_terminal_win = require_pi_terminal_window()
+  local workspace = require("config.pi.workspace").for_process(payload.requester_pid)
+  if not workspace then
+    return {
+      ok = false,
+      reason = "workspace_unavailable",
+      message = "The requesting Pi workspace is unavailable",
+      file_path = payload.file_path,
+    }
+  end
+  local pi_terminal_win = require_pi_terminal_window(workspace)
 
-  -- Restore the editor window hidden by an older proposal before selecting the
-  -- target for its replacement. Active preview windows are intentionally not
-  -- eligible review targets.
-  M.close()
-  local target = find_review_target()
+  -- Revisions replace only this workspace's previous proposal.
+  close_display(workspace)
+  local target = find_review_target(workspace.tabpage)
   if not target then
     vim.notify("Pi diff preview: no normal editor window is available", vim.log.levels.ERROR)
     return false
@@ -711,7 +795,6 @@ function M.open(payload)
     }
   end
 
-  -- Remember the target window's state so M.close() can restore it later.
   local restore = {
     buf = vim.api.nvim_win_get_buf(target),
     view = vim.api.nvim_win_call(target, vim.fn.winsaveview),
@@ -722,21 +805,21 @@ function M.open(payload)
     basename = "file"
   end
 
-  -- Build read-only scratch buffers from the RPC proposal contents.
   local preview_before_buf = make_preview_buffer(
-    ("pi://proposal/%s/original/%s"):format(payload.tool_call_id, basename),
+    ("pi://proposal/%s/%s/original/%s"):format(workspace.id, payload.tool_call_id, basename),
     payload.file_path,
     payload.old_content
   )
   local preview_proposed_buf = make_preview_buffer(
-    ("pi://proposal/%s/proposed/%s"):format(payload.tool_call_id, basename),
+    ("pi://proposal/%s/%s/proposed/%s"):format(workspace.id, payload.tool_call_id, basename),
     payload.file_path,
     payload.new_content
   )
 
-  -- Group temporary preview resources separately from editor restoration data.
-  active_display = {
+  local display = {
+    requester_pid = payload.requester_pid,
     tool_call_id = payload.tool_call_id,
+    workspace = workspace,
     pi_terminal_win = pi_terminal_win,
     preview = {
       before_win = target,
@@ -750,16 +833,17 @@ function M.open(payload)
     },
     restore = restore,
   }
+  active_displays[workspace.id] = display
 
-  local displayed, display_error = pcall(function()
+  local displayed, display_error = pcall(--[[ Provenance: vibed=true, reviewed=false. ]] function()
     if preferred_layout == "unified" then
-      show_unified(active_display.preview)
+      show_unified(display.preview)
     else
-      show_side_by_side(active_display.preview)
+      show_side_by_side(display.preview)
     end
   end)
   if not displayed then
-    M.close(payload.tool_call_id)
+    close_display(workspace, payload.tool_call_id)
     return {
       ok = false,
       reason = "preview_render_failed",
@@ -768,9 +852,9 @@ function M.open(payload)
     }
   end
 
-  local preview_rows, viewport_rows = preview_geometry(active_display.preview)
+  local preview_rows, viewport_rows = preview_geometry(display.preview)
   if preview_rows > viewport_rows then
-    M.close(payload.tool_call_id)
+    close_display(workspace, payload.tool_call_id)
     return {
       ok = false,
       reason = "preview_too_tall",
@@ -785,7 +869,6 @@ function M.open(payload)
     }
   end
 
-  -- Approval remains in Pi, so return focus after constructing the display.
   editor.focus_terminal(pi_terminal_win)
   return {
     ok = true,

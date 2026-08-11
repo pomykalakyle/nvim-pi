@@ -16,7 +16,10 @@ export type PreviewFailure = {
 
 export type PreviewResult = PreviewSuccess | PreviewFailure;
 
-/** Return whether an RPC value has the required preview-fit result shape. */
+/**
+ * Return whether an RPC value has the required preview-fit result shape.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function isPreviewResult(value: unknown): value is PreviewResult {
   if (!value || typeof value !== "object" || !("ok" in value)) return false;
   const result = value as Record<string, unknown>;
@@ -39,9 +42,14 @@ const RETRY_GUIDANCE: Record<string, string> = {
     "Correct unfolded_ranges using 1-based inclusive lines from the proposed file, then retry.",
   preview_render_failed:
     "The edit/write call was not executed. Restore the Neovim preview and retry.",
+  workspace_unavailable:
+    "The edit/write call was not executed. Return to the originating Pi workspace and retry.",
 };
 
-/** Return actionable model feedback for a rejected Neovim preview. */
+/**
+ * Return actionable model feedback for a rejected Neovim preview.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function formatPreviewFailure(result: PreviewFailure): string {
   const guidance = RETRY_GUIDANCE[result.reason];
   if (guidance) return `${result.message}. ${guidance}`;

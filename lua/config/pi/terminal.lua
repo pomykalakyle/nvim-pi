@@ -1,30 +1,22 @@
--- Owns Pi conversations, their terminal processes, and native Neovim tabs.
+-- Creates and controls Pi terminal processes owned by workspaces.
 
 local M = {}
 
-local interactive_terminal = nil
-local conversations = {}
-local next_terminal_id = 1
-
---- Builds the Pi command used for a normal continuation or one-time fork.
+---Builds the Pi command used for a normal continuation or one-time session fork.
+--- Provenance: vibed=true, reviewed=false.
 local function terminal_command(arguments)
   local command = { vim.fn.expand("~/.config/pi/launch.zsh") }
   vim.list_extend(command, arguments or { "--continue" })
   return command
 end
 
---- Normalizes the worktree directory assigned to a conversation tab.
-local function normalize_cwd(cwd)
-  local root = cwd or require("config.pi.worktree").active_root() or vim.fn.getcwd()
-  return vim.fn.resolve(vim.fn.fnamemodify(root, ":p")):gsub("/$", "")
-end
-
---- Returns the Snacks options for an independent Pi terminal process.
-local function terminal_options(cwd, env, count)
+---Returns the Snacks options for an independent workspace terminal.
+--- Provenance: vibed=true, reviewed=false.
+local function terminal_options(cwd, env, workspace_id)
   return {
-    cwd = normalize_cwd(cwd),
+    cwd = cwd,
     env = env,
-    count = count,
+    count = workspace_id,
     interactive = true,
     auto_close = false,
     win = {
@@ -32,6 +24,7 @@ local function terminal_options(cwd, env, count)
       width = 0.4,
       b = {
         pi_terminal = true,
+        pi_workspace_id = workspace_id,
       },
       wo = {
         winbar = "%{get(b:, 'pi_terminal_title', 'Pi')}",
@@ -41,55 +34,8 @@ local function terminal_options(cwd, env, count)
   }
 end
 
---- Removes conversations whose terminal buffer or native tab no longer exists.
-local function valid_conversations()
-  local removed_interactive = false
-  for index = #conversations, 1, -1 do
-    local conversation = conversations[index]
-    if not conversation.terminal:buf_valid() or not vim.api.nvim_tabpage_is_valid(conversation.tabpage) then
-      removed_interactive = removed_interactive or interactive_terminal == conversation.terminal
-      if conversation.terminal:buf_valid() then
-        conversation.terminal:close()
-      end
-      table.remove(conversations, index)
-    end
-  end
-
-  if removed_interactive then
-    interactive_terminal = nil
-    local current_tab = vim.api.nvim_get_current_tabpage()
-    for _, conversation in ipairs(conversations) do
-      if conversation.tabpage == current_tab then
-        interactive_terminal = conversation.terminal
-        break
-      end
-    end
-    interactive_terminal = interactive_terminal
-      or (conversations[#conversations] and conversations[#conversations].terminal)
-  end
-  return conversations
-end
-
---- Returns the conversation attached to one native tabpage.
-local function conversation_for_tab(tabpage)
-  for index, conversation in ipairs(valid_conversations()) do
-    if conversation.tabpage == tabpage then
-      return conversation, index
-    end
-  end
-  return nil
-end
-
---- Updates every visible terminal label from the unified conversation order.
-local function update_conversation_titles()
-  local total = #valid_conversations()
-  for index, conversation in ipairs(conversations) do
-    local worktree = vim.fn.fnamemodify(conversation.root, ":t")
-    vim.b[conversation.terminal.buf].pi_terminal_title = ("Pi: %s [%d/%d]"):format(worktree, index, total)
-  end
-end
-
---- Scrolls the current terminal window by half its visible height.
+---Scrolls the current terminal window by half its visible height.
+--- Provenance: vibed=true, reviewed=false.
 local function scroll_current_window_half_page(direction)
   local win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_win_get_buf(win)
@@ -110,14 +56,16 @@ local function scroll_current_window_half_page(direction)
   vim.fn.winrestview(view)
 end
 
---- Leaves terminal-input mode before manipulating Neovim's scrollback.
+---Leaves terminal-input mode before manipulating Neovim's scrollback.
+--- Provenance: vibed=true, reviewed=false.
 local function stop_terminal_insert_mode()
   if vim.fn.mode():sub(1, 1) == "t" then
     vim.cmd.stopinsert()
   end
 end
 
---- Re-enters Pi input and forwards the Space used to resume typing.
+---Re-enters Pi input and forwards the Space used to resume typing.
+--- Provenance: vibed=true, reviewed=false.
 local function resume_terminal_with_space(buf)
   vim.cmd.startinsert()
   local job_id = vim.b[buf].terminal_job_id
@@ -126,253 +74,135 @@ local function resume_terminal_with_space(buf)
   end
 end
 
---- Focuses a visible Pi terminal and enters terminal input mode.
-local function focus_terminal(terminal)
-  if terminal and terminal:win_valid() then
-    terminal:focus()
-    vim.cmd.startinsert()
-  end
-end
-
---- Installs conversation controls on one Pi terminal buffer.
+---Installs terminal and workspace controls on one Pi terminal buffer.
+--- Provenance: vibed=true, reviewed=false.
 local function attach_terminal_keymaps(terminal)
   if not terminal:buf_valid() or vim.b[terminal.buf].pi_terminal_keymaps_attached then
     return
   end
 
   vim.b[terminal.buf].pi_terminal_keymaps_attached = true
-  vim.keymap.set({ "n", "t" }, "<F18>", function()
+  vim.keymap.set({ "n", "t" }, "<F18>", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     stop_terminal_insert_mode()
     scroll_current_window_half_page(1)
   end, { buffer = terminal.buf, silent = true, desc = "Pi: Scroll down half a page" })
-  vim.keymap.set({ "n", "t" }, "<F19>", function()
+  vim.keymap.set({ "n", "t" }, "<F19>", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     stop_terminal_insert_mode()
     scroll_current_window_half_page(-1)
   end, { buffer = terminal.buf, silent = true, desc = "Pi: Scroll up half a page" })
-  vim.keymap.set({ "n", "t" }, "<F17>", function()
+  vim.keymap.set({ "n", "t" }, "<F17>", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     local job_id = vim.b[terminal.buf].terminal_job_id
     if job_id then
       vim.api.nvim_chan_send(job_id, "/back\r")
     end
   end, { buffer = terminal.buf, silent = true, desc = "Pi: Abort and restore previous prompt" })
-  vim.keymap.set("n", "<Space>", function()
+  vim.keymap.set("n", "<Space>", --[[ Provenance: vibed=true, reviewed=false. ]] function()
     resume_terminal_with_space(terminal.buf)
   end, { buffer = terminal.buf, silent = true, desc = "Pi: Resume input with space" })
-  vim.keymap.set({ "n", "t" }, "[", function()
-    M.cycle_session(-1)
-  end, { buffer = terminal.buf, silent = true, desc = "Pi: Previous session" })
-  vim.keymap.set({ "n", "t" }, "]", function()
-    M.cycle_session(1)
-  end, { buffer = terminal.buf, silent = true, desc = "Pi: Next session" })
-  vim.keymap.set({ "n", "t" }, "\\n", function()
-    M.create_session(nil, {})
-  end, { buffer = terminal.buf, silent = true, desc = "Pi: Add session" })
-  vim.keymap.set({ "n", "t" }, "\\x", function()
-    M.stop()
-  end, { buffer = terminal.buf, silent = true, desc = "Pi: Close session" })
+  vim.keymap.set({ "n", "t" }, "[", --[[ Provenance: vibed=true, reviewed=false. ]] function()
+    require("config.pi.workspace").cycle(-1)
+  end, { buffer = terminal.buf, silent = true, desc = "Pi: Previous workspace" })
+  vim.keymap.set({ "n", "t" }, "]", --[[ Provenance: vibed=true, reviewed=false. ]] function()
+    require("config.pi.workspace").cycle(1)
+  end, { buffer = terminal.buf, silent = true, desc = "Pi: Next workspace" })
+  vim.keymap.set({ "n", "t" }, "\\n", --[[ Provenance: vibed=true, reviewed=false. ]] function()
+    require("config.pi.workspace").create(nil, {})
+  end, { buffer = terminal.buf, silent = true, desc = "Pi: Add workspace" })
+  vim.keymap.set({ "n", "t" }, "\\x", --[[ Provenance: vibed=true, reviewed=false. ]] function()
+    require("config.pi.workspace").stop()
+  end, { buffer = terminal.buf, silent = true, desc = "Pi: Close workspace" })
   for index = 1, 9 do
     local slot = index
-    vim.keymap.set({ "n", "t" }, "\\" .. slot, function()
-      M.switch_to_session(slot)
-    end, { buffer = terminal.buf, silent = true, desc = "Pi: Session " .. slot })
+    vim.keymap.set({ "n", "t" }, "\\" .. slot, --[[ Provenance: vibed=true, reviewed=false. ]] function()
+      require("config.pi.workspace").switch(slot)
+    end, { buffer = terminal.buf, silent = true, desc = "Pi: Workspace " .. slot })
   end
 end
 
---- Starts a Pi process and attaches it to the current native tabpage.
-local function create_in_current_tab(root, arguments, env)
-  local tabpage = vim.api.nvim_get_current_tabpage()
-  if conversation_for_tab(tabpage) then
-    error("A Pi conversation already exists in this tab")
-  end
-
-  local terminal_id = next_terminal_id
-  next_terminal_id = next_terminal_id + 1
-  local terminal = Snacks.terminal.get(terminal_command(arguments), terminal_options(root, env, terminal_id))
+---Starts a Pi process for a workspace without registering or focusing it.
+--- Provenance: vibed=true, reviewed=false.
+function M.spawn(root, arguments, env, workspace_id)
+  local terminal = Snacks.terminal.get(terminal_command(arguments), terminal_options(root, env, workspace_id))
   if not (terminal and terminal:buf_valid()) then
     return nil
   end
-
-  table.insert(conversations, {
-    root = root,
-    tabpage = tabpage,
-    terminal = terminal,
-  })
   attach_terminal_keymaps(terminal)
-  update_conversation_titles()
-  focus_terminal(terminal)
-  interactive_terminal = terminal
   return terminal
 end
 
---- Creates a copied-layout conversation tab in the current worktree.
-function M.create_session(cwd, arguments, env)
-  local root = normalize_cwd(cwd)
-  local tabpage, err = require("config.pi.worktree").clone_current_tab(root)
-  if not tabpage then
-    vim.notify(err, vim.log.levels.ERROR, { title = "Pi" })
-    return nil
+---Focuses a visible terminal instance and enters terminal-input mode.
+--- Provenance: vibed=true, reviewed=false.
+function M.focus_instance(terminal)
+  if terminal and terminal:win_valid() then
+    terminal:focus()
+    vim.cmd.startinsert()
   end
-
-  local opened, terminal = pcall(create_in_current_tab, root, arguments, env)
-  if not opened or not terminal then
-    if vim.api.nvim_tabpage_is_valid(tabpage) then
-      vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(tabpage))
-    end
-    if not opened then
-      error(terminal)
-    end
-    return nil
-  end
-  return terminal
 end
 
---- Switches to one conversation tab from the unified project-wide list.
-function M.switch_to_session(index)
-  local conversation = valid_conversations()[index]
-  if not conversation then
-    vim.notify("No Pi session in slot " .. tostring(index), vim.log.levels.WARN)
-    return false
-  end
-
-  vim.api.nvim_set_current_tabpage(conversation.tabpage)
-  if not conversation.terminal:win_valid() then
-    conversation.terminal:show()
-  end
-  focus_terminal(conversation.terminal)
-  interactive_terminal = conversation.terminal
-  return true
-end
-
---- Selects the next or previous conversation with wraparound.
-function M.cycle_session(direction)
-  local _, current = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-  local total = #valid_conversations()
-  if total == 0 then
-    return false
-  end
-  if not current then
-    return M.switch_to_session(direction < 0 and total or 1)
-  end
-  return M.switch_to_session(((current - 1 + direction) % total) + 1)
-end
-
---- Opens Pi in the current browsing tab or focuses its existing conversation.
+---Opens or focuses the workspace in the current tab.
+--- Provenance: vibed=true, reviewed=false.
 function M.open(cwd, arguments, env)
-  local root = normalize_cwd(cwd)
-  local conversation = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-  if conversation then
-    if arguments then
-      error("A Pi conversation already exists in this tab")
-    end
-    if not conversation.terminal:win_valid() then
-      conversation.terminal:show()
-    end
-    focus_terminal(conversation.terminal)
-    interactive_terminal = conversation.terminal
-    return conversation.terminal
-  end
-  return create_in_current_tab(root, arguments, env)
+  return require("config.pi.workspace").open(cwd, arguments, env)
 end
 
---- Focuses the current tab's conversation or the most recently used one.
+---Creates a workspace while preserving the former terminal API name.
+--- Provenance: vibed=true, reviewed=false.
+function M.create_session(cwd, arguments, env)
+  return require("config.pi.workspace").create(cwd, arguments, env)
+end
+
+---Switches workspaces while preserving the former terminal API name.
+--- Provenance: vibed=true, reviewed=false.
+function M.switch_to_session(index)
+  return require("config.pi.workspace").switch(index)
+end
+
+---Cycles workspaces while preserving the former terminal API name.
+--- Provenance: vibed=true, reviewed=false.
+function M.cycle_session(direction)
+  return require("config.pi.workspace").cycle(direction)
+end
+
+---Focuses the current or most recently active workspace.
+--- Provenance: vibed=true, reviewed=false.
 function M.focus_existing()
-  local conversation = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-  local terminal = conversation and conversation.terminal or interactive_terminal
-  if not (terminal and terminal:buf_valid()) then
-    return false
-  end
-  if not conversation then
-    for index, candidate in ipairs(valid_conversations()) do
-      if candidate.terminal == terminal then
-        return M.switch_to_session(index)
-      end
-    end
-  end
-  if not terminal:win_valid() then
-    terminal:show()
-  end
-  focus_terminal(terminal)
-  interactive_terminal = terminal
-  return true
+  return require("config.pi.workspace").focus_existing()
 end
 
---- Toggles the Pi terminal owned by the current conversation tab.
+---Toggles the current workspace's Pi terminal.
+--- Provenance: vibed=true, reviewed=false.
 function M.toggle()
-  local conversation = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-  if not conversation then
-    return M.open()
-  end
-  interactive_terminal = conversation.terminal
-  conversation.terminal:toggle()
-  focus_terminal(conversation.terminal)
-  return conversation.terminal
+  return require("config.pi.workspace").toggle()
 end
 
---- Shows and focuses Pi in the current conversation tab.
+---Shows and focuses Pi in the current workspace.
+--- Provenance: vibed=true, reviewed=false.
 function M.focus()
-  return M.open()
+  return require("config.pi.workspace").focus()
 end
 
---- Stops the current conversation, closes its tab, and selects its neighbor.
+---Stops the current workspace and closes its native tab.
+--- Provenance: vibed=true, reviewed=false.
 function M.stop()
-  local conversation, index = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-  if not conversation then
-    return false
-  end
-
-  conversation.terminal:close()
-  table.remove(conversations, index)
-  local replacement = conversations[math.min(index, #conversations)] or conversations[index - 1]
-  if #vim.api.nvim_list_tabpages() > 1 and vim.api.nvim_tabpage_is_valid(conversation.tabpage) then
-    vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(conversation.tabpage))
-  end
-  update_conversation_titles()
-  if replacement and vim.api.nvim_tabpage_is_valid(replacement.tabpage) then
-    vim.api.nvim_set_current_tabpage(replacement.tabpage)
-    focus_terminal(replacement.terminal)
-    interactive_terminal = replacement.terminal
-  elseif interactive_terminal == conversation.terminal then
-    interactive_terminal = nil
-  end
-  return true
+  return require("config.pi.workspace").stop()
 end
 
---- Reports whether the current tab's Pi terminal is visible.
+---Reports whether the current workspace's Pi terminal is visible.
+--- Provenance: vibed=true, reviewed=false.
 function M.is_visible()
-  local conversation = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-  return conversation ~= nil and conversation.terminal:win_valid()
+  return require("config.pi.workspace").is_visible()
 end
 
---- Returns conversation metadata for unified navigation and pickers.
+---Lists workspaces while preserving the former terminal API name.
+--- Provenance: vibed=true, reviewed=false.
 function M.list_sessions()
-  update_conversation_titles()
-  local items = {}
-  for index, conversation in ipairs(conversations) do
-    items[index] = {
-      index = index,
-      root = conversation.root,
-      tabpage = conversation.tabpage,
-      title = vim.b[conversation.terminal.buf].pi_terminal_title,
-    }
-  end
-  return items
+  return require("config.pi.workspace").list()
 end
 
-local lifecycle_group = vim.api.nvim_create_augroup("PiConversationTabs", { clear = true })
-vim.api.nvim_create_autocmd("TabClosed", {
-  group = lifecycle_group,
-  callback = function()
-    vim.schedule(update_conversation_titles)
-  end,
-})
-vim.api.nvim_create_autocmd("TabEnter", {
-  group = lifecycle_group,
-  callback = function()
-    local conversation = conversation_for_tab(vim.api.nvim_get_current_tabpage())
-    if conversation then
-      interactive_terminal = conversation.terminal
-    end
-  end,
-})
+---Returns the workspace header used by Snacks and Edgy.
+--- Provenance: vibed=true, reviewed=false.
+function M.workspace_title(win)
+  return require("config.pi.workspace").title(win)
+end
 
 return M

@@ -8,6 +8,7 @@ local tab_root_variable = "pi_worktree_root"
 local pending_handoffs = {}
 
 --- Returns the worktree assigned to a native Neovim tabpage.
+--- Provenance: vibed=true, reviewed=false.
 local function tab_worktree(tabpage)
   if not vim.api.nvim_tabpage_is_valid(tabpage) then
     return nil
@@ -17,18 +18,21 @@ local function tab_worktree(tabpage)
 end
 
 --- Returns the worktree containing Neovim's current working directory.
+--- Provenance: vibed=true, reviewed=false.
 local function active_worktree()
   return tab_worktree(vim.api.nvim_get_current_tabpage()) or git_worktree.root(vim.fn.getcwd())
 end
 
 --- Returns the worktree assigned to the current native tabpage.
+--- Provenance: vibed=true, reviewed=false.
 function M.active_root()
   return active_worktree()
 end
 
 --- Opens Neo-tree at a new worktree tab's root without changing focus.
+--- Provenance: vibed=true, reviewed=false.
 local function open_neo_tree(root)
-  editor.with_preserved_focus(function()
+  editor.with_preserved_focus(--[[ Provenance: vibed=true, reviewed=false. ]] function()
     require("lazy").load({ plugins = { "neo-tree.nvim" } })
     require("neo-tree.command").execute({
       action = "show",
@@ -40,6 +44,7 @@ local function open_neo_tree(root)
 end
 
 --- Finds the native Neovim tabpage assigned to a worktree.
+--- Provenance: vibed=true, reviewed=false.
 local function find_worktree_tab(root)
   for _, tabpage in ipairs(vim.api.nvim_list_tabpages()) do
     if tab_worktree(tabpage) == root then
@@ -50,6 +55,7 @@ local function find_worktree_tab(root)
 end
 
 --- Assigns the current native Neovim tabpage to a worktree.
+--- Provenance: vibed=true, reviewed=false.
 local function assign_current_tab(root)
   local tabpage = vim.api.nvim_get_current_tabpage()
   vim.api.nvim_tabpage_set_var(tabpage, tab_root_variable, root)
@@ -58,6 +64,7 @@ local function assign_current_tab(root)
 end
 
 --- Captures the normal editor windows from one tab layout.
+--- Provenance: vibed=true, reviewed=false.
 local function capture_editor_layout(node)
   if node[1] == "leaf" then
     local win = node[2]
@@ -90,10 +97,11 @@ local function capture_editor_layout(node)
 end
 
 --- Recreates a captured split tree inside one target window.
+--- Provenance: vibed=true, reviewed=false.
 local function restore_editor_layout(node, target_win)
   if node.kind == "leaf" then
     vim.api.nvim_win_set_buf(target_win, node.buffer)
-    vim.api.nvim_win_call(target_win, function()
+    vim.api.nvim_win_call(target_win, --[[ Provenance: vibed=true, reviewed=false. ]] function()
       vim.fn.winrestview(node.view)
     end)
     pcall(vim.api.nvim_win_set_width, target_win, node.width)
@@ -113,6 +121,7 @@ local function restore_editor_layout(node, target_win)
 end
 
 --- Creates a native Neovim tabpage for a worktree.
+--- Provenance: vibed=true, reviewed=false.
 local function create_worktree_tab(root)
   vim.cmd.tabnew()
   local tabpage = assign_current_tab(root)
@@ -120,7 +129,8 @@ local function create_worktree_tab(root)
   return tabpage
 end
 
---- Copies the current editor layout into a conversation tab for the same worktree.
+--- Copies the current editor layout into a workspace tab for the same worktree.
+--- Provenance: vibed=true, reviewed=false.
 function M.clone_current_tab(root)
   root = git_worktree.root(root or active_worktree())
   if not root then
@@ -138,6 +148,7 @@ function M.clone_current_tab(root)
 end
 
 --- Selects or creates the native Neovim tabpage for a worktree.
+--- Provenance: vibed=true, reviewed=false.
 function M.switch_context(path)
   M.setup()
   local root = git_worktree.root(path)
@@ -165,6 +176,7 @@ function M.switch_context(path)
 end
 
 --- Opens the Pi terminal and browsing context for an existing worktree.
+--- Provenance: vibed=true, reviewed=false.
 function M.open_worktree(path)
   local root = git_worktree.root(path)
   if not root then
@@ -179,11 +191,12 @@ function M.open_worktree(path)
   end
 
   require("lazy").load({ plugins = { "snacks.nvim" } })
-  require("config.pi.terminal").open(root)
+  require("config.pi.workspace").open(root)
   return true
 end
 
 --- Acknowledges that a handed-off Pi session finished starting.
+--- Provenance: vibed=true, reviewed=false.
 function M.acknowledge_handoff(token)
   if type(token) ~= "string" or pending_handoffs[token] == nil then
     return false
@@ -193,6 +206,7 @@ function M.acknowledge_handoff(token)
 end
 
 --- Opens a fork of an existing Pi session in a worktree context.
+--- Provenance: vibed=true, reviewed=false.
 function M.handoff(payload)
   if type(payload) ~= "table" or type(payload.session_file) ~= "string" then
     return { ok = false, error = "A Pi session file is required" }
@@ -220,7 +234,7 @@ function M.handoff(payload)
   end
   local token = vim.fn.sha256(payload.session_file .. tostring(vim.uv.hrtime()))
   pending_handoffs[token] = false
-  local opened, terminal = pcall(require("config.pi.terminal").open, root, { "--session", payload.session_file }, {
+  local opened, terminal = pcall(require("config.pi.workspace").open, root, { "--session", payload.session_file }, {
     PI_NVIM_HANDOFF_ID = token,
   })
   local open_err = terminal
@@ -228,7 +242,7 @@ function M.handoff(payload)
     opened = false
     open_err = "Pi failed to open the worktree session"
   elseif opened then
-    vim.wait(vim.g.pi_worktree_handoff_timeout_ms or 15000, function()
+    vim.wait(vim.g.pi_worktree_handoff_timeout_ms or 15000, --[[ Provenance: vibed=true, reviewed=false. ]] function()
       if pending_handoffs[token] then
         return true
       end
@@ -237,7 +251,7 @@ function M.handoff(payload)
     end, 10)
     opened = pending_handoffs[token] == true
     if not opened then
-      require("config.pi.terminal").stop()
+      require("config.pi.workspace").stop()
       open_err = "Pi did not acknowledge the worktree session startup"
     end
   end
@@ -257,6 +271,7 @@ function M.handoff(payload)
 end
 
 --- Opens the Snacks picker for worktrees in the active repository.
+--- Provenance: vibed=true, reviewed=false.
 function M.pick()
   M.setup()
 
@@ -266,24 +281,24 @@ function M.pick()
     return
   end
 
-  local terminal = require("config.pi.terminal")
-  local sessions = terminal.list_sessions()
-  local roots_with_sessions = {}
-  local items = vim.tbl_map(function(session)
-    roots_with_sessions[session.root] = true
+  local workspace = require("config.pi.workspace")
+  local workspaces = workspace.list()
+  local roots_with_workspaces = {}
+  local items = vim.tbl_map(--[[ Provenance: vibed=true, reviewed=false. ]] function(item)
+    roots_with_workspaces[item.root] = true
     return {
-      text = session.title,
-      name = session.title,
-      kind = "conversation",
-      session = session.index,
-      path = session.root,
+      text = item.title,
+      name = item.title,
+      kind = "workspace",
+      workspace = item.index,
+      path = item.root,
     }
-  end, sessions)
+  end, workspaces)
   for _, worktree in ipairs(worktrees) do
-    if not roots_with_sessions[worktree.path] then
+    if not roots_with_workspaces[worktree.path] then
       table.insert(items, {
         text = worktree.name,
-        name = worktree.name .. " [new conversation]",
+        name = worktree.name .. " [new workspace]",
         kind = "worktree",
         path = worktree.path,
         main = worktree.main,
@@ -292,21 +307,24 @@ function M.pick()
   end
 
   Snacks.picker.pick({
-    source = "conversations",
-    title = "Conversations",
+    source = "workspaces",
+    title = "Workspaces",
+    --[[ Provenance: vibed=true, reviewed=false. ]]
     finder = function()
       return items
     end,
+    --[[ Provenance: vibed=true, reviewed=false. ]]
     format = function(item)
       return { { item.name, "SnacksPickerFile" } }
     end,
     layout = { preset = "left", preview = false },
+    --[[ Provenance: vibed=true, reviewed=false. ]]
     confirm = function(picker, item)
       picker:close()
       if item then
-        vim.schedule(function()
-          if item.kind == "conversation" then
-            terminal.switch_to_session(item.session)
+        vim.schedule(--[[ Provenance: vibed=true, reviewed=false. ]] function()
+          if item.kind == "workspace" then
+            workspace.switch(item.workspace)
           else
             M.open_worktree(item.path)
           end
@@ -317,6 +335,7 @@ function M.pick()
 end
 
 --- Associates the initial native Neovim tabpage with its worktree.
+--- Provenance: vibed=true, reviewed=false.
 function M.setup()
   local root = git_worktree.root(vim.fn.getcwd())
   if root and tab_worktree(vim.api.nvim_get_current_tabpage()) ~= root then

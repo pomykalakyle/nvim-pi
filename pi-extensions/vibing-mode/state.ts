@@ -19,7 +19,10 @@ type RequestState = {
   root: string;
 };
 
-/** Resolve existing ancestors through symlinks while retaining missing suffixes. */
+/**
+ * Resolve existing ancestors through symlinks while retaining missing suffixes.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function canonicalCandidate(path: string): string {
   const original = resolve(path);
   let cursor = original;
@@ -39,7 +42,10 @@ function canonicalCandidate(path: string): string {
   }
 }
 
-/** Return whether candidate stays at or below the canonical request root. */
+/**
+ * Return whether candidate stays at or below the canonical request root.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function isInsideRoot(root: string, candidate: string): boolean {
   const difference = relative(root, candidate);
   return difference === "" || (!difference.startsWith("..") && !isAbsolute(difference));
@@ -51,7 +57,10 @@ export class VibingModeState {
   private request: RequestState | undefined;
   private active = false;
 
-  /** Begin a request and clear every earlier activation. */
+  /**
+   * Begin a request and clear every earlier activation.
+   * Provenance: vibed=true, reviewed=false.
+   */
   beginRequest(cwd: string): void {
     this.active = false;
     this.request = {
@@ -60,13 +69,19 @@ export class VibingModeState {
     };
   }
 
-  /** Clear request state when a session ends or reloads. */
+  /**
+   * Clear request state when a session ends or reloads.
+   * Provenance: vibed=true, reviewed=false.
+   */
   reset(): void {
     this.active = false;
     this.request = undefined;
   }
 
-  /** Enable after the agent establishes direct or applicable standing user authorization. */
+  /**
+   * Enable after the agent establishes direct or applicable standing user authorization.
+   * Provenance: vibed=true, reviewed=false.
+   */
   enable(): { enabled: boolean; message: string } {
     if (!this.request) {
       return { enabled: false, message: "No active user request is available." };
@@ -78,24 +93,36 @@ export class VibingModeState {
     };
   }
 
-  /** Disable the current activation without discarding request metadata. */
+  /**
+   * Disable the current activation without discarding request metadata.
+   * Provenance: vibed=true, reviewed=false.
+   */
   disable(): boolean {
     const wasActive = this.active;
     this.active = false;
     return wasActive;
   }
 
-  /** End the request-scoped capability once Pi has fully settled. */
+  /**
+   * End the request-scoped capability once Pi has fully settled.
+   * Provenance: vibed=true, reviewed=false.
+   */
   settle(): boolean {
     return this.disable();
   }
 
-  /** Return whether edit preview and approval bypass are currently active. */
+  /**
+   * Return whether edit preview and approval bypass are currently active.
+   * Provenance: vibed=true, reviewed=false.
+   */
   isActive(): boolean {
     return this.active;
   }
 
-  /** Return a non-sensitive state snapshot for tools and sibling extensions. */
+  /**
+   * Return a non-sensitive state snapshot for tools and sibling extensions.
+   * Provenance: vibed=true, reviewed=false.
+   */
   snapshot(): VibingModeSnapshot {
     return {
       active: this.active,
@@ -104,7 +131,10 @@ export class VibingModeState {
     };
   }
 
-  /** Allow only top-level edit/write asks confined to the activation root. */
+  /**
+   * Allow only top-level edit/write asks confined to the activation root.
+   * Provenance: vibed=true, reviewed=false.
+   */
   shouldAuthorize(request: VibingModeAuthorization): boolean {
     if (!this.active || !this.request) return false;
     if (request.forwarded || request.source !== "tool_call") return false;

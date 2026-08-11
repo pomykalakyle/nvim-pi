@@ -1,11 +1,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { findLatestUserMessageId } from "./find-latest-user-message.js";
 
-/** Register an immediate one-turn rewind command. */
+/**
+ * Register an immediate one-turn rewind command.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export default function backExtension(pi: ExtensionAPI): void {
   pi.registerCommand("back", {
     description: "Abort active work and restore the latest user message",
-    handler: async (_args, ctx) => {
+    handler: /** Provenance: vibed=true, reviewed=false. */ async (_args, ctx) => {
       if (!ctx.isIdle()) {
         ctx.abort();
         await ctx.waitForIdle();

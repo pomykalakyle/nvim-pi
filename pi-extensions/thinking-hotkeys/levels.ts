@@ -12,7 +12,10 @@ export const THINKING_LEVELS = [
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 export type ThinkingDirection = "decrease" | "increase";
 
-/** Return the adjacent supported thinking level without wrapping at a boundary. */
+/**
+ * Return the adjacent supported thinking level without wrapping at a boundary.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function adjacentThinkingLevel(
   current: ThinkingLevel,
   supported: readonly ThinkingLevel[],

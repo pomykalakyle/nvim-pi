@@ -1,7 +1,7 @@
 # Pending edit proposals
 
 Normal `edit` and `write` calls create a pending proposal instead of changing the file immediately.
-The proposal stays visible as a read-only Neovim diff while the normal Pi editor remains available.
+The proposal stays visible as a read-only Neovim diff while the normal Pi editor remains available. Each Pi workspace can keep one pending proposal without replacing or closing another workspace's preview.
 
 ## Flow
 
@@ -9,7 +9,7 @@ The proposal stays visible as a read-only Neovim diff while the normal Pi editor
 edit/write
   → validate the mutation against the current file
   → open the Neovim diff
-  → store one pending proposal
+  → store one pending proposal for the workspace
   → continue the conversation
   → /proposal accept or /proposal reject
 ```

@@ -44,15 +44,15 @@ package.preload["neo-tree.command"] = function()
     end,
   }
 end
-package.preload["config.pi.terminal"] = function()
-  local terminal = {}
+package.preload["config.pi.workspace"] = function()
+  local workspace = {}
 
-  function terminal.open(cwd, arguments, env)
+  function workspace.open(cwd, arguments, env)
     local tabpage = vim.api.nvim_get_current_tabpage()
     for _, session in ipairs(terminal_sessions) do
       if session.tabpage == tabpage then
         if arguments then
-          error("A Pi conversation already exists in this tab")
+          error("A Pi workspace already exists in this tab")
         end
         return session.terminal
       end
@@ -75,7 +75,7 @@ package.preload["config.pi.terminal"] = function()
     return instance
   end
 
-  function terminal.stop()
+  function workspace.stop()
     local tabpage = vim.api.nvim_get_current_tabpage()
     for index, session in ipairs(terminal_sessions) do
       if session.tabpage == tabpage then
@@ -93,7 +93,7 @@ package.preload["config.pi.terminal"] = function()
     return false
   end
 
-  function terminal.list_sessions()
+  function workspace.list()
     local sessions = {}
     for index, session in ipairs(terminal_sessions) do
       sessions[index] = {
@@ -106,13 +106,13 @@ package.preload["config.pi.terminal"] = function()
     return sessions
   end
 
-  function terminal.switch_to_session(index)
+  function workspace.switch(index)
     selected_session = index
     vim.api.nvim_set_current_tabpage(terminal_sessions[index].tabpage)
     return true
   end
 
-  return terminal
+  return workspace
 end
 
 Snacks = {
@@ -138,7 +138,7 @@ local items = picker_opts.finder()
 assert(#items == 2)
 assert(items[1].main == true)
 assert(items[1].kind == "worktree")
-assert(items[2].name == "linked [new conversation]")
+assert(items[2].name == "linked [new workspace]")
 
 assert(worktree.open_worktree(linked_root))
 local linked_tab = vim.api.nvim_get_current_tabpage()
@@ -164,10 +164,10 @@ assert(#vim.api.nvim_list_tabpages() == initial_tab_count + 1)
 
 worktree.pick()
 items = picker_opts.finder()
-assert(picker_opts.title == "Conversations")
+assert(picker_opts.title == "Workspaces")
 assert(#items == 2)
-assert(items[1].kind == "conversation")
-assert(items[2].kind == "conversation")
+assert(items[1].kind == "workspace")
+assert(items[2].kind == "workspace")
 picker_opts.confirm({ close = function() end }, items[2])
 vim.wait(20, function()
   return selected_session == 2
@@ -190,7 +190,7 @@ local handoff_tab = vim.api.nvim_get_current_tabpage()
 assert(handoff_tab ~= linked_tab)
 assert(opened_arguments[#opened_arguments][1] == "--session")
 assert(opened_arguments[#opened_arguments][2] == source_session)
-assert(require("config.pi.terminal").stop())
+assert(require("config.pi.workspace").stop())
 
 vim.api.nvim_set_current_tabpage(main_tab)
 local duplicate = worktree.handoff({ worktree = linked_root, session_file = source_session })
@@ -198,7 +198,7 @@ assert(duplicate.ok == true)
 local duplicate_tab = vim.api.nvim_get_current_tabpage()
 assert(duplicate_tab ~= linked_tab)
 assert(terminal_roots[normalized_linked_root] == 2)
-assert(require("config.pi.terminal").stop())
+assert(require("config.pi.workspace").stop())
 assert(terminal_roots[normalized_linked_root] == 1)
 vim.api.nvim_set_current_tabpage(main_tab)
 

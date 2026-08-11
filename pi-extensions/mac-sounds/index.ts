@@ -2,22 +2,28 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const TINK_SOUND = "/System/Library/Sounds/Tink.aiff";
 
-/** Play one non-blocking Tink and suppress overlapping playback. */
+/**
+ * Play one non-blocking Tink and suppress overlapping playback.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function createTinkPlayer(pi: ExtensionAPI): () => void {
   let playback: Promise<unknown> | undefined;
 
-  return () => {
+  return /** Provenance: vibed=true, reviewed=false. */ () => {
     if (playback) return;
     playback = pi
       .exec("/usr/bin/afplay", [TINK_SOUND])
-      .catch(() => undefined)
-      .finally(() => {
+      .catch(/** Provenance: vibed=true, reviewed=false. */ () => undefined)
+      .finally(/** Provenance: vibed=true, reviewed=false. */ () => {
         playback = undefined;
       });
   };
 }
 
-/** Play Tink when Pi finishes or presents a permission prompt. */
+/**
+ * Play Tink when Pi finishes or presents a permission prompt.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export default function macSounds(pi: ExtensionAPI): void {
   const playTink = createTinkPlayer(pi);
   const stopPermissionListener = pi.events.on(

@@ -20,6 +20,7 @@ return {
   keys = {
     {
       "<leader>k",
+      --[[ Provenance: vibed=true, reviewed=false. ]]
       function()
         -- Reveal the current file in the tree when we're in a real file
         -- buffer; otherwise just open/focus the tree (no "nothing to

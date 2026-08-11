@@ -82,6 +82,7 @@ const EDIT_RANGE_GUIDELINE =
 const WRITE_RANGE_GUIDELINE =
   "Every write call must include unfolded_ranges using 1-based inclusive line numbers from the proposed file. Cover every changed hunk completely, include any unchanged context needed for review, and keep the initial folded preview small enough for the Neovim window.";
 
+/** Provenance: vibed=true, reviewed=false. */
 function validateRangeOrder(args: unknown): void {
   if (!args || typeof args !== "object") return;
   const ranges = (args as { unfolded_ranges?: unknown }).unfolded_ranges;
@@ -120,6 +121,7 @@ export type DeferredMutationExecutor = (
   ctx: ExtensionContext,
 ) => Promise<DeferredMutationResult | undefined>;
 
+/** Provenance: vibed=true, reviewed=false. */
 function terminalRendererMode(
   state: { terminalRenderer?: "compact" | "native" },
   argsComplete: boolean,
@@ -137,7 +139,10 @@ function terminalRendererMode(
   return state.terminalRenderer;
 }
 
-/** Build the transcript-native card that identifies a manual file review. */
+/**
+ * Build the transcript-native card that identifies a manual file review.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function renderManualReviewCard(
   args: { path?: unknown; justification?: unknown },
   outcome: "pending" | "accepted" | "rejected",
@@ -155,7 +160,7 @@ function renderManualReviewCard(
       : "Preparing justification…";
 
   // A real Box carries Pi's pending-tool background across the full card width.
-  const box = new Box(1, 1, (text) => theme.bg("toolPendingBg", text));
+  const box = new Box(1, 1, /** Provenance: vibed=true, reviewed=false. */ (text) => theme.bg("toolPendingBg", text));
   box.addChild(
     new Text(
       [
@@ -180,7 +185,10 @@ function renderManualReviewCard(
   return box;
 }
 
-/** Render the durable manual proposal outcome after focused review closes. */
+/**
+ * Render the durable manual proposal outcome after focused review closes.
+ * Provenance: vibed=true, reviewed=false.
+ */
 function renderManualResult(
   args: { path?: unknown; justification?: unknown },
   result: {
@@ -197,8 +205,8 @@ function renderManualResult(
   // Compact rendering still surfaces the complete error returned by the tool.
   if (isError) {
     const message = result.content
-      .filter((item) => item.type === "text")
-      .map((item) => item.text ?? "")
+      .filter(/** Provenance: vibed=true, reviewed=false. */ (item) => item.type === "text")
+      .map(/** Provenance: vibed=true, reviewed=false. */ (item) => item.text ?? "")
       .join("\n");
     return new Text(
       theme.fg("error", message || "File mutation failed"),
@@ -223,10 +231,13 @@ function renderManualResult(
   return new Container();
 }
 
-/** Override Pi's mutation schemas and route their diffs to one visible surface. */
+/**
+ * Override Pi's mutation schemas and route their diffs to one visible surface.
+ * Provenance: vibed=true, reviewed=false.
+ */
 export function registerPreviewAwareMutationTools(
   pi: ExtensionAPI,
-  showTerminalDiff: TerminalDiffSelector = () => false,
+  showTerminalDiff: TerminalDiffSelector = /** Provenance: vibed=true, reviewed=false. */ () => false,
   deferMutation?: DeferredMutationExecutor,
 ): void {
   const edit = createEditToolDefinition(process.cwd());
@@ -238,6 +249,7 @@ export function registerPreviewAwareMutationTools(
     promptGuidelines: [...(edit.promptGuidelines ?? []), EDIT_RANGE_GUIDELINE],
     parameters: previewEditSchema,
     renderShell: "self",
+    /** Provenance: vibed=true, reviewed=false. */
     renderCall(args, theme, context) {
       const priorMode = context.state.terminalRenderer;
       const mode = terminalRendererMode(
@@ -258,6 +270,7 @@ export function registerPreviewAwareMutationTools(
       }
       return new Container();
     },
+    /** Provenance: vibed=true, reviewed=false. */
     renderResult(result, options, theme, context) {
       if (context.state.terminalRenderer === "native") {
         if (!edit.renderResult)
@@ -276,6 +289,7 @@ export function registerPreviewAwareMutationTools(
         context.isError,
       );
     },
+    /** Provenance: vibed=true, reviewed=false. */
     prepareArguments(args) {
       const prepared = edit.prepareArguments?.(args) ?? args;
       if (!prepared || typeof prepared !== "object") {
@@ -291,6 +305,7 @@ export function registerPreviewAwareMutationTools(
         unfolded_ranges: unfoldedRanges,
       } as PreviewEditInput;
     },
+    /** Provenance: vibed=true, reviewed=false. */
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const deferred = await deferMutation?.(toolCallId, "edit", params, ctx);
       if (deferred) return deferred;
@@ -313,6 +328,7 @@ export function registerPreviewAwareMutationTools(
     ],
     parameters: previewWriteSchema,
     renderShell: "self",
+    /** Provenance: vibed=true, reviewed=false. */
     renderCall(args, theme, context) {
       const priorMode = context.state.terminalRenderer;
       const mode = terminalRendererMode(
@@ -333,6 +349,7 @@ export function registerPreviewAwareMutationTools(
       }
       return new Container();
     },
+    /** Provenance: vibed=true, reviewed=false. */
     renderResult(result, options, theme, context) {
       if (context.state.terminalRenderer === "native") {
         if (!write.renderResult)
@@ -351,10 +368,12 @@ export function registerPreviewAwareMutationTools(
         context.isError,
       );
     },
+    /** Provenance: vibed=true, reviewed=false. */
     prepareArguments(args) {
       validateRangeOrder(args);
       return args as PreviewWriteInput;
     },
+    /** Provenance: vibed=true, reviewed=false. */
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const deferred = await deferMutation?.(toolCallId, "write", params, ctx);
       if (deferred) return deferred;
