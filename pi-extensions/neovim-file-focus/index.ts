@@ -10,19 +10,19 @@ import {
 
 const silentLogger = {
   level: "silent",
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   info() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   warn() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   error() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   debug() {
     return this;
   },
@@ -32,20 +32,20 @@ let focusQueue: Promise<void> = Promise.resolve();
 
 /**
  * Serialize editor focus calls because Pi may execute sibling tool calls concurrently.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function enqueueFocus<T>(operation: () => Promise<T>): Promise<T> {
   const result = focusQueue.then(operation, operation);
   focusQueue = result.then(
-    /** Provenance: vibed=true, reviewed=false. */ () => undefined,
-    /** Provenance: vibed=true, reviewed=false. */ () => undefined,
+    /** Reviewed: false. */ () => undefined,
+    /** Reviewed: false. */ () => undefined,
   );
   return result;
 }
 
 /**
  * Resolve a tool path against Pi's working directory and normalize @-prefixed inputs.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function absolutePath(cwd: string, path: string): string {
   const normalized = path.startsWith("@") ? path.slice(1) : path;
@@ -54,7 +54,7 @@ function absolutePath(cwd: string, path: string): string {
 
 /**
  * Execute Lua through the parent Neovim instance's MessagePack-RPC socket.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
   const socket = process.env.NVIM;
@@ -70,7 +70,7 @@ async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
 
 /**
  * Ask Neovim to focus an inclusive file range beside this exact Pi process.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function focusFile(
   cwd: string,
@@ -96,7 +96,7 @@ async function focusFile(
 
 /**
  * Remove temporary focus styling when this Pi session shuts down or reloads.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function clearFileFocus(): Promise<void> {
   await callNeovim(
@@ -107,7 +107,7 @@ async function clearFileFocus(): Promise<void> {
 
 /**
  * Register the agent-facing tool while Neovim retains all layout authority.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export default function neovimFileFocus(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -121,7 +121,7 @@ export default function neovimFileFocus(pi: ExtensionAPI): void {
       start_line: Type.Integer({ minimum: 1, description: "First line to focus, inclusive" }),
       end_line: Type.Integer({ minimum: 1, description: "Last line to focus, inclusive" }),
     }),
-    /** Provenance: vibed=true, reviewed=false. */
+    /** Reviewed: false. */
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       if (signal?.aborted) throw new Error("focus_file was cancelled");
 
@@ -130,7 +130,7 @@ export default function neovimFileFocus(pi: ExtensionAPI): void {
         details: {},
       });
 
-      const result = await enqueueFocus(/** Provenance: vibed=true, reviewed=false. */ () =>
+      const result = await enqueueFocus(/** Reviewed: false. */ () =>
         focusFile(ctx.cwd, params.path, params.start_line, params.end_line)
       );
       if (result.ok === false) throw new Error(formatFocusFailure(result));
@@ -147,8 +147,8 @@ export default function neovimFileFocus(pi: ExtensionAPI): void {
     },
   });
 
-  pi.on("session_shutdown", /** Provenance: vibed=true, reviewed=false. */ () => {
-    void clearFileFocus().catch(/** Provenance: vibed=true, reviewed=false. */ () => {
+  pi.on("session_shutdown", /** Reviewed: false. */ () => {
+    void clearFileFocus().catch(/** Reviewed: false. */ () => {
       // A disappearing Neovim instance must not interfere with Pi shutdown.
     });
   });

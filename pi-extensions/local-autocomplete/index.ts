@@ -74,7 +74,7 @@ let requestSequence = 0;
 class EventLogger {
   private readonly path: string | undefined;
 
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   constructor(filename: string) {
     try {
       const directory = join(process.cwd(), ".pi", "local-autocomplete");
@@ -85,7 +85,7 @@ class EventLogger {
     }
   }
 
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   log(event: Record<string, unknown>): void {
     if (!this.path) return;
 
@@ -97,7 +97,7 @@ class EventLogger {
   }
 }
 
-/** Extract plain text from one Pi user or assistant message.  * Provenance: vibed=true, reviewed=false.
+/** Extract plain text from one Pi user or assistant message.  * Reviewed: false.
  */
 function messageText(message: unknown): string {
   if (!message || typeof message !== "object" || !("content" in message)) {
@@ -110,7 +110,7 @@ function messageText(message: unknown): string {
 
   return content
     .filter(
-      /** Provenance: vibed=true, reviewed=false. */ (part): part is { type: "text"; text: string } =>
+      /** Reviewed: false. */ (part): part is { type: "text"; text: string } =>
         !!part &&
         typeof part === "object" &&
         "type" in part &&
@@ -118,13 +118,13 @@ function messageText(message: unknown): string {
         "text" in part &&
         typeof part.text === "string",
     )
-    .map(/** Provenance: vibed=true, reviewed=false. */ (part) => part.text)
+    .map(/** Reviewed: false. */ (part) => part.text)
     .join("");
 }
 
 /**
  * Build a small background block from the latest conversation messages.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function recentBackground(ctx: ExtensionContext): string {
   let branch: unknown[];
@@ -171,7 +171,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private request: CompletionRequest | undefined;
 
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   constructor(
     tui: TUI,
     theme: EditorTheme,
@@ -184,7 +184,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Handle Tab acceptance, then let Pi perform ordinary editing. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   override handleInput(data: string): void {
     const inputAt = Date.now();
 
@@ -213,7 +213,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Decorate Pi's rendered cursor line with dim completion text. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   override render(width: number): string[] {
     const lines = super.render(width);
     if (
@@ -255,13 +255,13 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Stop timers and network work when Pi replaces this editor. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   dispose(): void {
     this.clearCompletion("disposed");
   }
 
   /** Return whether the cursor is after the final character in the draft. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private cursorAtEnd(): boolean {
     const cursor = this.getCursor();
     const lines = this.getText().split("\n");
@@ -272,7 +272,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Clear visible, scheduled, and in-flight completion state. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private clearCompletion(
     reason: Exclude<CompletionOutcome, "accepted" | "replaced">,
   ): void {
@@ -286,7 +286,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Record timing and size for one user-authored text change. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private logTypingChange(before: string, after: string, inputAt: number): void {
     let prefixLength = 0;
     const sharedLength = Math.min(before.length, after.length);
@@ -335,19 +335,19 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Debounce a completion request for the current draft. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private scheduleCompletion(text: string, keypressAt: number): void {
     // The first version only predicts after meaningful text at the draft's end.
     if (!this.cursorAtEnd() || text.trim().length < 3) return;
 
-    this.debounceTimer = setTimeout(/** Provenance: vibed=true, reviewed=false. */ () => {
+    this.debounceTimer = setTimeout(/** Reviewed: false. */ () => {
       this.debounceTimer = undefined;
       this.startCompletion(text, keypressAt);
     }, DEBOUNCE_MS);
   }
 
   /** Launch local and remote predictions for the same draft snapshot. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private startCompletion(text: string, keypressAt: number): void {
     if (this.getText() !== text || !this.cursorAtEnd()) return;
 
@@ -370,7 +370,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Fetch the quick local prediction, which remains provisional until remote finishes. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private async fetchLocalCompletion(
     request: CompletionRequest,
     userPrompt: string,
@@ -408,7 +408,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Fetch the preferred remote prediction and replace a provisional local ghost. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private async fetchRemoteCompletion(
     request: CompletionRequest,
     userPrompt: string,
@@ -451,7 +451,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Apply a current result while preventing local from overwriting remote. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private applyCompletion(
     request: CompletionRequest,
     source: CompletionProvider,
@@ -500,7 +500,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Record how the visible suggestion ended before replacing or clearing it. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private finishVisibleSuggestion(
     firstWordAccepted: boolean,
     outcome: CompletionOutcome,
@@ -524,7 +524,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Cancel both providers without changing an already-rendered ghost. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private cancelRequests(): void {
     this.request?.local.abort();
     this.request?.remote.abort();
@@ -532,7 +532,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Reduce model output to one short literal suffix. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private cleanCompletion(text: string): string {
     // Keep meaningful boundary whitespace while dropping multiline output.
     let completion = text.replace(/\r/g, "");
@@ -543,7 +543,7 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 
   /** Insert the next whitespace-delimited unit and retain the remainder. */
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   private acceptNextWord(): void {
     if (!this.ghostText) return;
 
@@ -569,23 +569,23 @@ class LocalAutocompleteEditor extends CustomEditor {
   }
 }
 
-/** Install the local autocomplete editor for interactive Pi sessions.  * Provenance: vibed=true, reviewed=false.
+/** Install the local autocomplete editor for interactive Pi sessions.  * Reviewed: false.
  */
 export default function localAutocomplete(pi: ExtensionAPI): void {
   let editor: LocalAutocompleteEditor | undefined;
 
-  pi.on("session_start", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("session_start", /** Reviewed: false. */ (_event, ctx) => {
     if (!ctx.hasUI) return;
 
     // Pi invokes this factory whenever it needs the interactive prompt editor.
-    ctx.ui.setEditorComponent(/** Provenance: vibed=true, reviewed=false. */ (tui, theme, keybindings) => {
+    ctx.ui.setEditorComponent(/** Reviewed: false. */ (tui, theme, keybindings) => {
       editor?.dispose();
       editor = new LocalAutocompleteEditor(tui, theme, keybindings, ctx);
       return editor;
     });
   });
 
-  pi.on("session_shutdown", /** Provenance: vibed=true, reviewed=false. */ () => {
+  pi.on("session_shutdown", /** Reviewed: false. */ () => {
     editor?.dispose();
     editor = undefined;
   });

@@ -18,7 +18,7 @@ vim.keymap.set({ "n", "i", "v", "t" }, "<F13>", pi_file_focus.toggle_current_tab
 -- letter, so Neovim receives the virtual keys m/n/e/i (physical h/j/k/l positions).
 -- Map them to wincmd h/j/k/l, mirroring colemak.lua (m->left, n->down, e->up, i->right).
 for vkey, dir in pairs({ m = "h", n = "j", e = "k", i = "l" }) do
-  vim.keymap.set({ "n", "t" }, "<D-" .. vkey .. ">", --[[ Provenance: vibed=true, reviewed=false. ]] function()
+  vim.keymap.set({ "n", "t" }, "<D-" .. vkey .. ">", --[[ Reviewed: false. ]] function()
     vim.cmd("wincmd " .. dir)
   end, { silent = true, desc = "Go to " .. dir .. " window" })
 end

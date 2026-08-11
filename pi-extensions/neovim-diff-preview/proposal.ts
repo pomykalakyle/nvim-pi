@@ -39,13 +39,13 @@ export type Proposal = {
 
 /**
  * Resolve a tool path against Pi's working directory.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function absolutePath(cwd: string, path: string): string {
   return isAbsolute(path) ? resolve(path) : resolve(cwd, path);
 }
 
-/** Provenance: vibed=true, reviewed=false. */
+/** Reviewed: false. */
 function isMissingFile(error: unknown): boolean {
   return Boolean(
     error &&
@@ -57,7 +57,7 @@ function isMissingFile(error: unknown): boolean {
 
 /**
  * Resolve existing symlinks while retaining a missing path suffix.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function canonicalMutationPath(filePath: string): Promise<string> {
   let existing = filePath;
@@ -77,7 +77,7 @@ async function canonicalMutationPath(filePath: string): Promise<string> {
 
 /**
  * Run Pi's real edit implementation while capturing its write in memory.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function buildEditProposal(
   toolCallId: string,
@@ -88,13 +88,13 @@ export async function buildEditProposal(
   let newContent: string | undefined;
   const previewTool = createEditToolDefinition(ctx.cwd, {
     operations: {
-      access: /** Provenance: vibed=true, reviewed=false. */ (path) => access(path, constants.R_OK | constants.W_OK),
-      readFile: /** Provenance: vibed=true, reviewed=false. */ async (path) => {
+      access: /** Reviewed: false. */ (path) => access(path, constants.R_OK | constants.W_OK),
+      readFile: /** Reviewed: false. */ async (path) => {
         const content = await readFile(path);
         oldContent = content.toString("utf8");
         return content;
       },
-      writeFile: /** Provenance: vibed=true, reviewed=false. */ async (_path, content) => {
+      writeFile: /** Reviewed: false. */ async (_path, content) => {
         newContent = content;
       },
     },
@@ -127,7 +127,7 @@ export async function buildEditProposal(
 
 /**
  * Build a full-content write proposal from Pi's validated input.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function buildWriteProposal(
   toolCallId: string,
@@ -186,10 +186,10 @@ export async function buildWriteProposal(
 
 /**
  * Apply exactly the reviewed snapshot, failing if the target changed meanwhile.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function applyProposal(proposal: Proposal): Promise<void> {
-  await withFileMutationQueue(proposal.mutationPath, /** Provenance: vibed=true, reviewed=false. */ async () => {
+  await withFileMutationQueue(proposal.mutationPath, /** Reviewed: false. */ async () => {
     const currentTarget = await canonicalMutationPath(proposal.filePath);
     if (currentTarget !== proposal.mutationPath) {
       throw new Error(

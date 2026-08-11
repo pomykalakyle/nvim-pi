@@ -12,7 +12,7 @@ export type VibingModeService = {
 
 /**
  * Return the current Vibing Mode service when a live extension published it.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function getVibingModeService(): VibingModeService | undefined {
   const candidate = (globalThis as unknown as SymbolRegistry)[VIBING_MODE_SERVICE_KEY];
@@ -31,7 +31,7 @@ export function getVibingModeService(): VibingModeService | undefined {
 
 /**
  * Publish one live extension generation for sibling extension queries.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function publishVibingModeService(service: VibingModeService): void {
   (globalThis as unknown as SymbolRegistry)[VIBING_MODE_SERVICE_KEY] = service;
@@ -39,7 +39,7 @@ export function publishVibingModeService(service: VibingModeService): void {
 
 /**
  * Remove a service only when this extension generation still owns the slot.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function unpublishVibingModeService(service: VibingModeService): void {
   const registry = globalThis as unknown as SymbolRegistry;

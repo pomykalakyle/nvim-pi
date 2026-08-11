@@ -21,7 +21,7 @@ type RequestState = {
 
 /**
  * Resolve existing ancestors through symlinks while retaining missing suffixes.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function canonicalCandidate(path: string): string {
   const original = resolve(path);
@@ -44,7 +44,7 @@ function canonicalCandidate(path: string): string {
 
 /**
  * Return whether candidate stays at or below the canonical request root.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function isInsideRoot(root: string, candidate: string): boolean {
   const difference = relative(root, candidate);
@@ -59,7 +59,7 @@ export class VibingModeState {
 
   /**
    * Begin a request and clear every earlier activation.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   beginRequest(cwd: string): void {
     this.active = false;
@@ -71,7 +71,7 @@ export class VibingModeState {
 
   /**
    * Clear request state when a session ends or reloads.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   reset(): void {
     this.active = false;
@@ -80,7 +80,7 @@ export class VibingModeState {
 
   /**
    * Enable after the agent establishes direct or applicable standing user authorization.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   enable(): { enabled: boolean; message: string } {
     if (!this.request) {
@@ -95,7 +95,7 @@ export class VibingModeState {
 
   /**
    * Disable the current activation without discarding request metadata.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   disable(): boolean {
     const wasActive = this.active;
@@ -105,7 +105,7 @@ export class VibingModeState {
 
   /**
    * End the request-scoped capability once Pi has fully settled.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   settle(): boolean {
     return this.disable();
@@ -113,7 +113,7 @@ export class VibingModeState {
 
   /**
    * Return whether edit preview and approval bypass are currently active.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   isActive(): boolean {
     return this.active;
@@ -121,7 +121,7 @@ export class VibingModeState {
 
   /**
    * Return a non-sensitive state snapshot for tools and sibling extensions.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   snapshot(): VibingModeSnapshot {
     return {
@@ -133,7 +133,7 @@ export class VibingModeState {
 
   /**
    * Allow only top-level edit/write asks confined to the activation root.
-   * Provenance: vibed=true, reviewed=false.
+   * Reviewed: false.
    */
   shouldAuthorize(request: VibingModeAuthorization): boolean {
     if (!this.active || !this.request) return false;

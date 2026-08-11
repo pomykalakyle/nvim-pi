@@ -11,7 +11,7 @@ import {
 
 /**
  * Move one step through the active model's supported thinking levels.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function changeThinkingLevel(
   pi: ExtensionAPI,
@@ -28,16 +28,16 @@ function changeThinkingLevel(
 
 /**
  * Register directional thinking-level shortcuts.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export default function thinkingHotkeys(pi: ExtensionAPI): void {
   pi.registerShortcut("alt+,", {
     description: "Decrease thinking level",
-    handler: /** Provenance: vibed=true, reviewed=false. */ (ctx) => changeThinkingLevel(pi, ctx, "decrease"),
+    handler: /** Reviewed: false. */ (ctx) => changeThinkingLevel(pi, ctx, "decrease"),
   });
 
   pi.registerShortcut("alt+.", {
     description: "Increase thinking level",
-    handler: /** Provenance: vibed=true, reviewed=false. */ (ctx) => changeThinkingLevel(pi, ctx, "increase"),
+    handler: /** Reviewed: false. */ (ctx) => changeThinkingLevel(pi, ctx, "increase"),
   });
 }

@@ -8,7 +8,7 @@ export const PROPOSAL_ENTRY = "nvim-pi-pending-proposal";
 
 /**
  * Persist the current proposal state without adding it to model context.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function persistPendingProposal(
   pi: ExtensionAPI,
@@ -21,7 +21,7 @@ export function persistPendingProposal(
   }
 }
 
-/** Provenance: vibed=true, reviewed=false. */
+/** Reviewed: false. */
 function isProposal(value: unknown): value is Proposal {
   if (!value || typeof value !== "object") return false;
   const proposal = value as Partial<Proposal>;
@@ -47,7 +47,7 @@ function isProposal(value: unknown): value is Proposal {
 
 /**
  * Add fields absent from proposals persisted by older extension versions.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function normalizeProposal(value: unknown): Proposal | undefined {
   let normalized = value;
@@ -66,7 +66,7 @@ function normalizeProposal(value: unknown): Proposal | undefined {
 
 /**
  * Reconstruct the latest pending proposal on the active session branch.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function restorePendingProposal(
   ctx: ExtensionContext,

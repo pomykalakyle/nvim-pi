@@ -18,7 +18,7 @@ export type ManagedWorktree = {
 
 /**
  * Run Git and return trimmed stdout, preserving its useful failure message.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function git(cwd: string, args: string[], signal?: AbortSignal): Promise<string> {
   try {
@@ -38,7 +38,7 @@ async function git(cwd: string, args: string[], signal?: AbortSignal): Promise<s
 
 /**
  * Report whether a filesystem path already exists.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -51,7 +51,7 @@ async function pathExists(path: string): Promise<boolean> {
 
 /**
  * Choose a branch and directory name unused by the repository.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function uniqueName(
   repo: string,
@@ -64,8 +64,8 @@ async function uniqueName(
   while (
     await pathExists(join(directory, candidate))
     || (await git(repo, ["show-ref", "--verify", "--quiet", `refs/heads/${candidate}`], signal).then(
-      /** Provenance: vibed=true, reviewed=false. */ () => true,
-      /** Provenance: vibed=true, reviewed=false. */ () => false,
+      /** Reviewed: false. */ () => true,
+      /** Reviewed: false. */ () => false,
     ))
   ) {
     candidate = `${requested}-${suffix}`;
@@ -76,7 +76,7 @@ async function uniqueName(
 
 /**
  * Create a uniquely named managed worktree from the latest origin/main.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function createManagedWorktree(
   cwd: string,
@@ -89,7 +89,7 @@ export async function createManagedWorktree(
 
   const sourceRoot = resolve(await git(cwd, ["rev-parse", "--show-toplevel"], signal));
   const porcelain = await git(sourceRoot, ["worktree", "list", "--porcelain"], signal);
-  const mainLine = porcelain.split("\n").find(/** Provenance: vibed=true, reviewed=false. */ (line) => line.startsWith("worktree "));
+  const mainLine = porcelain.split("\n").find(/** Reviewed: false. */ (line) => line.startsWith("worktree "));
   if (!mainLine) throw new Error("Git did not report a main worktree");
 
   await git(sourceRoot, ["fetch", "origin", "main"], signal);
@@ -112,14 +112,14 @@ export async function createManagedWorktree(
 
 /**
  * Remove only the worktree and branch created by this handoff attempt.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function rollbackManagedWorktree(worktree: ManagedWorktree): Promise<void> {
   const failures: string[] = [];
-  await git(worktree.sourceRoot, ["worktree", "remove", "--force", worktree.path]).catch(/** Provenance: vibed=true, reviewed=false. */ (error) => {
+  await git(worktree.sourceRoot, ["worktree", "remove", "--force", worktree.path]).catch(/** Reviewed: false. */ (error) => {
     failures.push(error instanceof Error ? error.message : String(error));
   });
-  await git(worktree.sourceRoot, ["branch", "-D", worktree.branch]).catch(/** Provenance: vibed=true, reviewed=false. */ (error) => {
+  await git(worktree.sourceRoot, ["branch", "-D", worktree.branch]).catch(/** Reviewed: false. */ (error) => {
     failures.push(error instanceof Error ? error.message : String(error));
   });
   if (failures.length > 0) throw new Error(`Worktree rollback failed: ${failures.join(" ")}`);

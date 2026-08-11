@@ -32,7 +32,7 @@ return {
   {
     "iamcco/markdown-preview.nvim",
     ---Build the browser preview stylesheet with a viewport-wide page container.
-    --[[ Provenance: vibed=true, reviewed=false. ]]
+    --[[ Reviewed: false. ]]
     config = function()
       local plugin = require("lazy.core.config").plugins["markdown-preview.nvim"]
       local source = vim.fs.joinpath(plugin.dir, "app", "_static", "markdown.css")

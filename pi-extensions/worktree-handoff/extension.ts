@@ -21,7 +21,7 @@ export type HandoffDependencies = {
 
 /**
  * Register natural-language managed worktree handoffs for embedded Pi.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function registerWorktreeHandoff(
   pi: ExtensionAPI,
@@ -45,7 +45,7 @@ export function registerWorktreeHandoff(
         description: "Concise lowercase branch and worktree name",
       }),
     }),
-    /** Provenance: vibed=true, reviewed=false. */
+    /** Reviewed: false. */
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       if (signal?.aborted) throw new Error("Worktree handoff was cancelled");
       if (pending) throw new Error("A worktree handoff is already pending");
@@ -75,7 +75,7 @@ export function registerWorktreeHandoff(
     },
   });
 
-  pi.on("agent_settled", /** Provenance: vibed=true, reviewed=false. */ async (_event, ctx) => {
+  pi.on("agent_settled", /** Reviewed: false. */ async (_event, ctx) => {
     const handoff = pending;
     pending = undefined;
     if (!handoff) return;
@@ -87,11 +87,11 @@ export function registerWorktreeHandoff(
     } catch (error) {
       const failures = [error instanceof Error ? error.message : String(error)];
       if (forkedSession) {
-        await rm(forkedSession, { force: true }).catch(/** Provenance: vibed=true, reviewed=false. */ (cleanupError) => {
+        await rm(forkedSession, { force: true }).catch(/** Reviewed: false. */ (cleanupError) => {
           failures.push(`Session cleanup failed: ${String(cleanupError)}`);
         });
       }
-      await dependencies.rollbackWorktree(handoff.worktree).catch(/** Provenance: vibed=true, reviewed=false. */ (cleanupError) => {
+      await dependencies.rollbackWorktree(handoff.worktree).catch(/** Reviewed: false. */ (cleanupError) => {
         failures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError));
       });
       ctx.ui.notify(`Worktree handoff failed: ${failures.join(" ")}`, "error");

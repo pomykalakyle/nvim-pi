@@ -26,7 +26,7 @@ type AuthorizerService = Pick<PermissionsService, "registerAuthorizer">;
 
 /**
  * Resolve Gotgenes' documented process-global service without a runtime dependency.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function getPermissionsService(): AuthorizerService | undefined {
   const candidate = (globalThis as unknown as SymbolRegistry)[PERMISSIONS_SERVICE_KEY];
@@ -39,10 +39,10 @@ function getPermissionsService(): AuthorizerService | undefined {
 
 /**
  * Build the bounded authorizer callback around request-scoped state.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function createAuthorizer(state: VibingModeState) {
-  return /** Provenance: vibed=true, reviewed=false. */ async (
+  return /** Reviewed: false. */ async (
     details: PromptPermissionDetails,
     _query: unknown,
     log: AuthorizerLog,
@@ -69,14 +69,14 @@ function createAuthorizer(state: VibingModeState) {
 
 /**
  * Register request-scoped edit approval bypass while preserving every other gate.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export default function vibingMode(pi: ExtensionAPI): void {
   const state = new VibingModeState();
   const service: VibingModeService = Object.freeze({
-    isActive: /** Provenance: vibed=true, reviewed=false. */ () => state.isActive(),
-    snapshot: /** Provenance: vibed=true, reviewed=false. */ () => state.snapshot(),
-    shouldSuppressPreview: /** Provenance: vibed=true, reviewed=false. */ (toolName, path) => state.shouldAuthorize({
+    isActive: /** Reviewed: false. */ () => state.isActive(),
+    snapshot: /** Reviewed: false. */ () => state.snapshot(),
+    shouldSuppressPreview: /** Reviewed: false. */ (toolName, path) => state.shouldAuthorize({
       source: "tool_call",
       toolName,
       path,
@@ -89,7 +89,7 @@ export default function vibingMode(pi: ExtensionAPI): void {
   let registrationError: string | undefined;
 
   /** Ensure registration belongs to the current permission-service generation. */
-  const registerAuthorizer = /** Provenance: vibed=true, reviewed=false. */ (): boolean => {
+  const registerAuthorizer = /** Reviewed: false. */ (): boolean => {
     const permissions = getPermissionsService();
     if (!permissions) {
       registrationError = "the permission service is unavailable";
@@ -125,14 +125,14 @@ export default function vibingMode(pi: ExtensionAPI): void {
     registerAuthorizer,
   );
 
-  pi.on("session_start", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("session_start", /** Reviewed: false. */ (_event, ctx) => {
     state.reset();
     ctx.ui.setStatus(STATUS_KEY, undefined);
     publishVibingModeService(service);
     registerAuthorizer();
   });
 
-  pi.on("before_agent_start", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("before_agent_start", /** Reviewed: false. */ (_event, ctx) => {
     state.beginRequest(ctx.cwd);
     ctx.ui.setStatus(STATUS_KEY, undefined);
     registerAuthorizer();
@@ -150,7 +150,7 @@ export default function vibingMode(pi: ExtensionAPI): void {
         description: "The Vibing Mode state operation.",
       }),
     }),
-    /** Provenance: vibed=true, reviewed=false. */
+    /** Reviewed: false. */
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       if (params.action === "enable") {
         if (!registerAuthorizer()) {
@@ -217,13 +217,13 @@ export default function vibingMode(pi: ExtensionAPI): void {
     },
   });
 
-  pi.on("agent_settled", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("agent_settled", /** Reviewed: false. */ (_event, ctx) => {
     if (!state.settle()) return;
     ctx.ui.setStatus(STATUS_KEY, undefined);
     ctx.ui.notify("Vibing Mode ended; normal edit review is active.", "info");
   });
 
-  pi.on("session_shutdown", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("session_shutdown", /** Reviewed: false. */ (_event, ctx) => {
     state.reset();
     ctx.ui.setStatus(STATUS_KEY, undefined);
     unsubscribePermissionsReady();

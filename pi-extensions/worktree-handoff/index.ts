@@ -18,7 +18,7 @@ import {
 const dependencies: HandoffDependencies = {
   createWorktree: createManagedWorktree,
   rollbackWorktree: rollbackManagedWorktree,
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   forkSession(source, targetCwd) {
     const session = SessionManager.forkFrom(source, targetCwd);
     const file = session.getSessionFile();
@@ -30,11 +30,11 @@ const dependencies: HandoffDependencies = {
 
 /**
  * Register natural-language managed worktree handoffs for embedded Pi.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export default function worktreeHandoff(pi: ExtensionAPI): void {
   registerWorktreeHandoff(pi, dependencies);
-  pi.on("session_start", /** Provenance: vibed=true, reviewed=false. */ async () => {
+  pi.on("session_start", /** Reviewed: false. */ async () => {
     const token = process.env.PI_NVIM_HANDOFF_ID;
     delete process.env.PI_NVIM_HANDOFF_ID;
     if (token) await acknowledgeWorktreeHandoff(token);

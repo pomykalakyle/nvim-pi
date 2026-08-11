@@ -13,7 +13,7 @@ cd "$launch_dir" || exit 1
 
 # Neovim sends USR1 immediately before a project-switch exit. Bash cannot
 # relaunch yet, so the signal handler records what to do after Neovim is gone.
-# Provenance: vibed=true, reviewed=false.
+# Reviewed: false.
 restart_with_picker=1
 request_project_picker() {
   restart_with_picker=1

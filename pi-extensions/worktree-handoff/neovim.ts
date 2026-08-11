@@ -2,19 +2,19 @@ import { attach } from "neovim";
 
 const silentLogger = {
   level: "silent",
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   info() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   warn() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   error() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   debug() {
     return this;
   },
@@ -28,7 +28,7 @@ type HandoffResult = {
 
 /**
  * Tell the parent Neovim instance that the handed-off Pi session is ready.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function acknowledgeWorktreeHandoff(token: string): Promise<void> {
   const socket = process.env.NVIM;
@@ -48,7 +48,7 @@ export async function acknowledgeWorktreeHandoff(token: string): Promise<void> {
 
 /**
  * Ask the parent Neovim instance to open a prepared Pi session.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export async function openWorktreeSession(worktree: string, sessionFile: string): Promise<void> {
   const socket = process.env.NVIM;

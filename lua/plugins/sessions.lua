@@ -8,7 +8,7 @@ return {
       "Shatur/neovim-session-manager",
       "folke/snacks.nvim",
     },
-    --[[ Provenance: vibed=true, reviewed=false. ]]
+    --[[ Reviewed: false. ]]
     init = function()
       vim.opt.sessionoptions:append("globals")
     end,
@@ -44,7 +44,7 @@ return {
         type = "snacks",
       },
     },
-    --[[ Provenance: vibed=true, reviewed=false. ]]
+    --[[ Reviewed: false. ]]
     config = function(_, opts)
       require("neovim-project").setup(opts)
       require("config.project_picker.picker").install()
@@ -52,7 +52,7 @@ return {
     keys = {
       {
         "<leader>fp",
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.project_picker.picker").restart_to_picker()
         end,

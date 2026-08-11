@@ -11,19 +11,19 @@ export type NvimOperations = {
 
 const silentLogger = {
   level: "silent",
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   info() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   warn() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   error() {
     return this;
   },
-  /** Provenance: vibed=true, reviewed=false. */
+  /** Reviewed: false. */
   debug() {
     return this;
   },
@@ -31,7 +31,7 @@ const silentLogger = {
 
 /**
  * Execute Lua through the parent Neovim instance's MessagePack-RPC socket.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
   const socket = process.env.NVIM;
@@ -46,7 +46,7 @@ async function callNeovim(code: string, args: unknown[]): Promise<unknown> {
 
 /**
  * Reload the Lua preview module after Pi's extension runtime reloads.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function reloadPreview(): Promise<void> {
   await callNeovim(
@@ -69,7 +69,7 @@ async function reloadPreview(): Promise<void> {
 
 /**
  * Send one proposal directly as structured MessagePack-RPC arguments.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function openPreview(proposal: Proposal): Promise<PreviewResult> {
   const result = await callNeovim(
@@ -93,7 +93,7 @@ async function openPreview(proposal: Proposal): Promise<PreviewResult> {
 
 /**
  * Refresh a loaded Neovim buffer after a file changes.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function refreshBuffer(filePath: string): Promise<void> {
   await callNeovim('return require("config.pi.diff_preview").refresh(...)', [
@@ -103,7 +103,7 @@ async function refreshBuffer(filePath: string): Promise<void> {
 
 /**
  * Close a preview without making editor availability part of the decision.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 async function closePreview(toolCallId: string): Promise<void> {
   try {

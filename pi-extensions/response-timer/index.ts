@@ -26,7 +26,7 @@ const defaultDependencies: TimerDependencies = {
 
 /**
  * Registers a footer status that measures each complete agent response.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function registerResponseTimer(
   pi: ExtensionAPI,
@@ -36,41 +36,41 @@ export function registerResponseTimer(
   let timer: TimerHandle | undefined;
 
   /** Stops the render loop without clearing the last displayed duration. */
-  const clearTimer = /** Provenance: vibed=true, reviewed=false. */ (): void => {
+  const clearTimer = /** Reviewed: false. */ (): void => {
     if (timer === undefined) return;
     dependencies.clearInterval(timer);
     timer = undefined;
   };
 
   /** Re-renders the current elapsed duration through Pi's built-in footer. */
-  const updateStatus = /** Provenance: vibed=true, reviewed=false. */ (ctx: ExtensionContext): void => {
+  const updateStatus = /** Reviewed: false. */ (ctx: ExtensionContext): void => {
     if (startedAt === undefined) return;
     const elapsed = prettyMilliseconds(dependencies.now() - startedAt, FORMAT_OPTIONS);
     ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", `response ${elapsed}`));
   };
 
-  pi.on("session_start", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("session_start", /** Reviewed: false. */ (_event, ctx) => {
     clearTimer();
     startedAt = undefined;
     ctx.ui.setStatus(STATUS_KEY, undefined);
   });
 
   // This event runs once Pi has accepted and prepared the submitted prompt.
-  pi.on("before_agent_start", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("before_agent_start", /** Reviewed: false. */ (_event, ctx) => {
     clearTimer();
     startedAt = dependencies.now();
     updateStatus(ctx);
-    timer = dependencies.setInterval(/** Provenance: vibed=true, reviewed=false. */ () => updateStatus(ctx), UPDATE_INTERVAL_MS);
+    timer = dependencies.setInterval(/** Reviewed: false. */ () => updateStatus(ctx), UPDATE_INTERVAL_MS);
   });
 
   // Settled includes retries, compaction retries, and queued follow-up work.
-  pi.on("agent_settled", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("agent_settled", /** Reviewed: false. */ (_event, ctx) => {
     if (startedAt === undefined) return;
     clearTimer();
     updateStatus(ctx);
   });
 
-  pi.on("session_shutdown", /** Provenance: vibed=true, reviewed=false. */ (_event, ctx) => {
+  pi.on("session_shutdown", /** Reviewed: false. */ (_event, ctx) => {
     clearTimer();
     startedAt = undefined;
     ctx.ui.setStatus(STATUS_KEY, undefined);

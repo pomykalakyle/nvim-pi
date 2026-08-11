@@ -18,7 +18,7 @@ export type PreviewResult = PreviewSuccess | PreviewFailure;
 
 /**
  * Return whether an RPC value has the required preview-fit result shape.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function isPreviewResult(value: unknown): value is PreviewResult {
   if (!value || typeof value !== "object" || !("ok" in value)) return false;
@@ -48,7 +48,7 @@ const RETRY_GUIDANCE: Record<string, string> = {
 
 /**
  * Return actionable model feedback for a rejected Neovim preview.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function formatPreviewFailure(result: PreviewFailure): string {
   const guidance = RETRY_GUIDANCE[result.reason];

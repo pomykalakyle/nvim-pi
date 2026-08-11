@@ -3,7 +3,7 @@
 local M = {}
 
 --- Normalizes a filesystem path for worktree comparisons.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.normalize(path)
   if type(path) ~= "string" or path == "" then
     return nil
@@ -13,7 +13,7 @@ function M.normalize(path)
 end
 
 --- Runs a Git command and returns its output lines.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function run_git(path, args)
   local cwd = M.normalize(path)
   if not cwd then
@@ -30,7 +30,7 @@ local function run_git(path, args)
 end
 
 --- Returns the worktree root containing a path.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.root(path)
   local normalized = M.normalize(path)
   if not normalized then
@@ -46,7 +46,7 @@ function M.root(path)
 end
 
 --- Returns the shared Git directory used as a repository identity.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.common_dir(path)
   local root = M.root(path)
   if not root then
@@ -58,7 +58,7 @@ function M.common_dir(path)
 end
 
 --- Reports whether a path belongs to a worktree root.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.contains(root, path)
   root = M.normalize(root)
   path = M.normalize(path)
@@ -66,7 +66,7 @@ function M.contains(root, path)
 end
 
 --- Lists the worktrees belonging to the repository containing a path.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.list(path)
   local root = M.root(path)
   if not root then
@@ -82,7 +82,7 @@ function M.list(path)
   local entry = nil
 
   --- Adds the current porcelain entry to the result.
-  --- Provenance: vibed=true, reviewed=false.
+  --- Reviewed: false.
   local function finish_entry()
     if not entry or not entry.path then
       entry = nil

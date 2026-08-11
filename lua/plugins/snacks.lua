@@ -8,7 +8,7 @@ return {
   keys = {
     {
       "<leader>ff",
-      --[[ Provenance: vibed=true, reviewed=false. ]]
+      --[[ Reviewed: false. ]]
       function()
         LazyVim.pick("files", { layout = { preset = "left" } })()
       end,
@@ -16,7 +16,7 @@ return {
     },
     {
       "<leader>fF",
-      --[[ Provenance: vibed=true, reviewed=false. ]]
+      --[[ Reviewed: false. ]]
       function()
         LazyVim.pick("files", { root = false, layout = { preset = "left" } })()
       end,
@@ -24,7 +24,7 @@ return {
     },
     {
       "<leader>fw",
-      --[[ Provenance: vibed=true, reviewed=false. ]]
+      --[[ Reviewed: false. ]]
       function()
         require("config.pi.worktree").pick()
       end,

@@ -7,14 +7,14 @@ local active_workspace = nil
 local next_workspace_id = 1
 
 ---Normalizes the project root assigned to a workspace.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function normalize_root(cwd)
   local root = cwd or require("config.pi.worktree").active_root() or vim.fn.getcwd()
   return vim.fn.resolve(vim.fn.fnamemodify(root, ":p")):gsub("/$", "")
 end
 
 ---Allocates an identity that remains stable for the workspace's lifetime.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function allocate_id()
   local id = next_workspace_id
   next_workspace_id = next_workspace_id + 1
@@ -22,13 +22,13 @@ local function allocate_id()
 end
 
 ---Reports whether a workspace still has both required Neovim resources.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function workspace_is_valid(workspace)
   return workspace.terminal:buf_valid() and vim.api.nvim_tabpage_is_valid(workspace.tabpage)
 end
 
 ---Closes workspace-specific preview state without loading the preview module unnecessarily.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function close_workspace_preview(workspace)
   local preview = package.loaded["config.pi.diff_preview"]
   if preview and type(preview.close_workspace) == "function" then
@@ -37,7 +37,7 @@ local function close_workspace_preview(workspace)
 end
 
 ---Removes unreachable workspaces and stops terminals left without tabs.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function valid_workspaces()
   local removed_active = false
   for index = #workspaces, 1, -1 do
@@ -67,7 +67,7 @@ local function valid_workspaces()
 end
 
 ---Adds a workspace with an already allocated identity to the registry.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function insert_workspace(id, root, tabpage, terminal)
   local workspace = {
     id = id,
@@ -82,7 +82,7 @@ local function insert_workspace(id, root, tabpage, terminal)
 end
 
 ---Formats the workspace list from the perspective of one Pi terminal.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function workspace_header(active_buf)
   local parts = {}
   for index, workspace in ipairs(valid_workspaces()) do
@@ -94,7 +94,7 @@ local function workspace_header(active_buf)
 end
 
 ---Updates every Pi terminal title after workspace ordering changes.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function update_titles()
   valid_workspaces()
   for _, workspace in ipairs(workspaces) do
@@ -103,7 +103,7 @@ local function update_titles()
 end
 
 ---Shows and focuses the Pi terminal belonging to a workspace.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function focus_workspace(workspace)
   if not workspace.terminal:win_valid() then
     workspace.terminal:show()
@@ -114,7 +114,7 @@ local function focus_workspace(workspace)
 end
 
 ---Starts a Pi terminal and registers it against the current native tab.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function create_in_current_tab(root, arguments, env)
   local tabpage = vim.api.nvim_get_current_tabpage()
   if M.for_tab(tabpage) then
@@ -133,7 +133,7 @@ local function create_in_current_tab(root, arguments, env)
 end
 
 ---Returns the workspace and navigation index assigned to a native tab.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.for_tab(tabpage)
   for index, workspace in ipairs(valid_workspaces()) do
     if workspace.tabpage == tabpage then
@@ -143,7 +143,7 @@ function M.for_tab(tabpage)
 end
 
 ---Returns the workspace with a stable Neovim-local identity.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.for_id(id)
   for _, workspace in ipairs(valid_workspaces()) do
     if workspace.id == id then
@@ -153,7 +153,7 @@ function M.for_id(id)
 end
 
 ---Returns the workspace whose Pi terminal is running the requesting process.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.for_process(pid)
   for _, workspace in ipairs(valid_workspaces()) do
     if vim.b[workspace.terminal.buf].terminal_job_pid == pid then
@@ -163,20 +163,20 @@ function M.for_process(pid)
 end
 
 ---Returns the workspace attached to the current native tab.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.current()
   return M.for_tab(vim.api.nvim_get_current_tabpage())
 end
 
 ---Returns the most recently active reachable Pi workspace.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.active()
   valid_workspaces()
   return active_workspace
 end
 
 ---Creates a copied-layout workspace in the requested project root.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.create(cwd, arguments, env)
   local root = normalize_root(cwd)
   local tabpage, err = require("config.pi.worktree").clone_current_tab(root)
@@ -199,7 +199,7 @@ function M.create(cwd, arguments, env)
 end
 
 ---Opens Pi in the current browsing workspace or creates one in this tab.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.open(cwd, arguments, env)
   local root = normalize_root(cwd)
   local workspace = M.current()
@@ -213,7 +213,7 @@ function M.open(cwd, arguments, env)
 end
 
 ---Switches to one workspace from the unified navigation order.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.switch(index)
   local workspace = valid_workspaces()[index]
   if not workspace then
@@ -226,7 +226,7 @@ function M.switch(index)
 end
 
 ---Selects the next or previous workspace with wraparound.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.cycle(direction)
   local _, current = M.for_tab(vim.api.nvim_get_current_tabpage())
   local total = #valid_workspaces()
@@ -240,7 +240,7 @@ function M.cycle(direction)
 end
 
 ---Focuses the current tab's workspace or the most recently used one.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.focus_existing()
   local workspace = M.current() or M.active()
   if not workspace then
@@ -254,7 +254,7 @@ function M.focus_existing()
 end
 
 ---Toggles the Pi terminal owned by the current workspace.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.toggle()
   local workspace = M.current()
   if not workspace then
@@ -267,13 +267,13 @@ function M.toggle()
 end
 
 ---Shows and focuses Pi in the current workspace.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.focus()
   return M.open()
 end
 
 ---Stops the current workspace, closes its tab, and selects its neighbor.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.stop()
   local workspace, index = M.for_tab(vim.api.nvim_get_current_tabpage())
   if not workspace then
@@ -298,14 +298,14 @@ function M.stop()
 end
 
 ---Reports whether the current workspace's Pi terminal is visible.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.is_visible()
   local workspace = M.current()
   return workspace ~= nil and workspace.terminal:win_valid()
 end
 
 ---Returns workspace metadata for unified navigation and project pickers.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.list()
   update_titles()
   local items = {}
@@ -322,7 +322,7 @@ function M.list()
 end
 
 ---Returns the workspace header for a Pi window rendered by Snacks or Edgy.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.title(win)
   win = win or vim.g.statusline_winid or vim.api.nvim_get_current_win()
   if not vim.api.nvim_win_is_valid(win) then
@@ -336,7 +336,7 @@ local lifecycle_group = vim.api.nvim_create_augroup("PiWorkspaces", { clear = tr
 -- Remove workspaces whose native tabs were closed outside the workspace controls.
 vim.api.nvim_create_autocmd("TabClosed", {
   group = lifecycle_group,
-  --[[ Provenance: vibed=true, reviewed=false. ]]
+  --[[ Reviewed: false. ]]
   callback = function()
     vim.schedule(update_titles)
   end,
@@ -345,7 +345,7 @@ vim.api.nvim_create_autocmd("TabClosed", {
 -- Keep global focus fallback aligned with native tab navigation.
 vim.api.nvim_create_autocmd("TabEnter", {
   group = lifecycle_group,
-  --[[ Provenance: vibed=true, reviewed=false. ]]
+  --[[ Reviewed: false. ]]
   callback = function()
     local workspace = M.current()
     if workspace then

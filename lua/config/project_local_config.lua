@@ -5,7 +5,7 @@ local git_worktree = require("config.git_worktree")
 
 local active_config
 
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function config_path_for_current_project()
   local root = git_worktree.root(vim.fn.getcwd())
   if not root then
@@ -15,12 +15,12 @@ local function config_path_for_current_project()
   return vim.fs.joinpath(root, ".nvim.lua")
 end
 
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function notify_error(message)
   vim.notify(message, vim.log.levels.ERROR, { title = "Project config" })
 end
 
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.unload()
   if not active_config then
     return
@@ -37,7 +37,7 @@ function M.unload()
   end
 end
 
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.load_current()
   local path = config_path_for_current_project()
   if active_config and active_config.path == path then

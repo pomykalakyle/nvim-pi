@@ -14,7 +14,7 @@ export type ThinkingDirection = "decrease" | "increase";
 
 /**
  * Return the adjacent supported thinking level without wrapping at a boundary.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function adjacentThinkingLevel(
   current: ThinkingLevel,

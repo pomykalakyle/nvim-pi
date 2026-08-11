@@ -8,7 +8,7 @@ local installed = false
 local restart_launcher_pid = nil
 
 --- Determines whether this empty-argv launch must choose a project first.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.bootstrap()
   if vim.fn.argc() ~= 0 then
     return false
@@ -24,7 +24,7 @@ function M.bootstrap()
 end
 
 --- Exits normally and asks the parent Bash launcher to open a fresh picker.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.restart_to_picker()
   local launcher_pid = tonumber(vim.env.NVIM_PI_LAUNCHER_PID)
   -- Signal zero checks that the launcher exists without notifying or terminating it.
@@ -47,7 +47,7 @@ end
 
 vim.api.nvim_create_autocmd("VimLeavePre", {
   group = vim.api.nvim_create_augroup("user_project_restart", { clear = true }),
-  --[[ Provenance: vibed=true, reviewed=false. ]]
+  --[[ Reviewed: false. ]]
   callback = function()
     if restart_launcher_pid then
       local launcher_pid = restart_launcher_pid
@@ -58,7 +58,7 @@ vim.api.nvim_create_autocmd("VimLeavePre", {
 })
 
 --- Filters picker candidates to roots that are not already open elsewhere.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function available_projects(history_only)
   local path = require("neovim-project.utils.path")
   local history = require("neovim-project.utils.history")
@@ -75,13 +75,13 @@ local function available_projects(history_only)
     projects = path.get_all_projects_with_sorting()
   end
 
-  return vim.tbl_filter(--[[ Provenance: vibed=true, reviewed=false. ]] function(project)
+  return vim.tbl_filter(--[[ Reviewed: false. ]] function(project)
     return not registry.root_is_active(git_worktree.root(project))
   end, projects)
 end
 
 --- Opens the project picker without already-open roots.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.pick_project(history_only)
   local projects = available_projects(history_only)
   if #projects == 0 then
@@ -96,16 +96,16 @@ function M.pick_project(history_only)
       title = history_only and "Recent Projects" or "Projects",
       items = projects,
       format = "filename",
-      --[[ Provenance: vibed=true, reviewed=false. ]]
+      --[[ Reviewed: false. ]]
       transform = function(path)
         return { text = path, file = path, dir = true }
       end,
-      --[[ Provenance: vibed=true, reviewed=false. ]]
+      --[[ Reviewed: false. ]]
       confirm = function(picker, item)
         if item then
           local dir = Snacks.picker.util.dir(item)
           picker:close()
-          vim.schedule(--[[ Provenance: vibed=true, reviewed=false. ]] function()
+          vim.schedule(--[[ Reviewed: false. ]] function()
             project.switch_project(dir)
           end)
         end
@@ -114,7 +114,7 @@ function M.pick_project(history_only)
 
     if history_only then
       picker_opts.actions = {
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         delete_project = function(picker, item)
           local dir = item.file
           local choice = vim.fn.confirm("Delete '" .. dir .. "' from project history?", "&Yes\n&No", 2)
@@ -136,7 +136,7 @@ function M.pick_project(history_only)
     return
   end
 
-  vim.ui.select(projects, { prompt = "Projects" }, --[[ Provenance: vibed=true, reviewed=false. ]] function(choice)
+  vim.ui.select(projects, { prompt = "Projects" }, --[[ Reviewed: false. ]] function(choice)
     if choice then
       project.switch_project(choice)
     end
@@ -144,7 +144,7 @@ function M.pick_project(history_only)
 end
 
 --- Prevents plugin commands and picker callbacks from reopening an active root.
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 function M.install()
   if installed then
     return
@@ -152,7 +152,7 @@ function M.install()
 
   local project = require("neovim-project.project")
   local switch_project = project.switch_project
-  project.switch_project = --[[ Provenance: vibed=true, reviewed=false. ]]
+  project.switch_project = --[[ Reviewed: false. ]]
     function(dir)
       if registry.root_is_active(git_worktree.root(dir)) then
         vim.notify(
@@ -160,7 +160,7 @@ function M.install()
           vim.log.levels.WARN,
           { title = "Neovim Project" }
         )
-        vim.schedule(--[[ Provenance: vibed=true, reviewed=false. ]] function()
+        vim.schedule(--[[ Reviewed: false. ]] function()
           M.pick_project(false)
         end)
         return

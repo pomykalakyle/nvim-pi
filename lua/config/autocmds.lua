@@ -9,7 +9,7 @@
 -- Or remove existing autocmds by their group name (which is prefixed with `lazyvim_` for the defaults)
 -- e.g. vim.api.nvim_del_augroup_by_name("lazyvim_wrap_spell")
 
---- Provenance: vibed=true, reviewed=false.
+--- Reviewed: false.
 local function configure_lua_end_concealment()
   local match_id = vim.w.lua_end_conceal_match
 

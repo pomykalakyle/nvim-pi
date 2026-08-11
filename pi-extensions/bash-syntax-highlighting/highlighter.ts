@@ -47,9 +47,9 @@ type StyledCapture = {
   color: BashThemeColor;
 };
 
-/** Provenance: vibed=true, reviewed=false. */
+/** Reviewed: false. */
 function styledCaptures(captures: QueryCapture[]): StyledCapture[] {
-  return captures.flatMap(/** Provenance: vibed=true, reviewed=false. */ (capture) => {
+  return captures.flatMap(/** Reviewed: false. */ (capture) => {
     const color = CAPTURE_COLORS[capture.name];
     if (!color || capture.node.startIndex === capture.node.endIndex) return [];
     return [
@@ -64,7 +64,7 @@ function styledCaptures(captures: QueryCapture[]): StyledCapture[] {
 
 /**
  * Prefer the smallest capture so nested variables retain their own color inside strings.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 function captureForRange(
   captures: StyledCapture[],
@@ -72,13 +72,13 @@ function captureForRange(
   end: number,
 ): StyledCapture | undefined {
   return captures
-    .filter(/** Provenance: vibed=true, reviewed=false. */ (capture) => capture.start <= start && capture.end >= end)
-    .sort(/** Provenance: vibed=true, reviewed=false. */ (left, right) => left.end - left.start - (right.end - right.start))[0];
+    .filter(/** Reviewed: false. */ (capture) => capture.start <= start && capture.end >= end)
+    .sort(/** Reviewed: false. */ (left, right) => left.end - left.start - (right.end - right.start))[0];
 }
 
 /**
  * Highlight Bash using tree-sitter-bash's bundled, command-aware standard query.
- * Provenance: vibed=true, reviewed=false.
+ * Reviewed: false.
  */
 export function highlightBashCommand(
   command: string,
@@ -92,12 +92,12 @@ export function highlightBashCommand(
     const boundaries = [
       0,
       command.length,
-      ...captures.flatMap(/** Provenance: vibed=true, reviewed=false. */ (capture) => [capture.start, capture.end]),
+      ...captures.flatMap(/** Reviewed: false. */ (capture) => [capture.start, capture.end]),
     ]
-      .filter(/** Provenance: vibed=true, reviewed=false. */ (index) => index >= 0 && index <= command.length)
-      .sort(/** Provenance: vibed=true, reviewed=false. */ (left, right) => left - right)
+      .filter(/** Reviewed: false. */ (index) => index >= 0 && index <= command.length)
+      .sort(/** Reviewed: false. */ (left, right) => left - right)
       .filter(
-        /** Provenance: vibed=true, reviewed=false. */ (index, position, all) =>
+        /** Reviewed: false. */ (index, position, all) =>
           position === 0 || index !== all[position - 1],
       );
 

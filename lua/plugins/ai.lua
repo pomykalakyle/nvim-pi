@@ -5,7 +5,7 @@ return {
       {
         "<F16>",
         --- Focuses Pi before Wispr Flow begins or finishes dictation.
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").focus_existing()
         end,
@@ -15,7 +15,7 @@ return {
       {
         "<leader>cc",
         --- Toggles the interactive Pi terminal.
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").toggle()
         end,
@@ -24,7 +24,7 @@ return {
       {
         "<leader>cf",
         --- Opens and focuses the interactive Pi terminal.
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").focus()
         end,
@@ -33,7 +33,7 @@ return {
       {
         "<leader>ca",
         --- Creates a fresh workspace in the current worktree.
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").create(nil, {})
         end,
@@ -42,7 +42,7 @@ return {
       {
         "<leader>cx",
         --- Stops the active workspace and selects a neighboring workspace.
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").stop()
         end,
@@ -50,7 +50,7 @@ return {
       },
       {
         "<leader>cn",
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").cycle(1)
         end,
@@ -58,16 +58,16 @@ return {
       },
       {
         "<leader>ce",
-        --[[ Provenance: vibed=true, reviewed=false. ]]
+        --[[ Reviewed: false. ]]
         function()
           require("config.pi.workspace").cycle(-1)
         end,
         desc = "Pi: Previous workspace",
       },
-      unpack(vim.tbl_map(--[[ Provenance: vibed=true, reviewed=false. ]] function(index)
+      unpack(vim.tbl_map(--[[ Reviewed: false. ]] function(index)
         return {
           "<leader>c" .. index,
-          --[[ Provenance: vibed=true, reviewed=false. ]]
+          --[[ Reviewed: false. ]]
           function()
             require("config.pi.workspace").switch(index)
           end,
@@ -91,13 +91,13 @@ return {
       },
       left = {
         {
-          --[[ Provenance: vibed=true, reviewed=false. ]]
+          --[[ Reviewed: false. ]]
           title = function()
             return require("config.pi.workspace").title(vim.g.statusline_winid)
           end,
           ft = "snacks_terminal",
           --- Matches only the interactive Pi terminal buffer.
-          --[[ Provenance: vibed=true, reviewed=false. ]]
+          --[[ Reviewed: false. ]]
           filter = function(buf)
             return vim.b[buf].pi_terminal == true
           end,
