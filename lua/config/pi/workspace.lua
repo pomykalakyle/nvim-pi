@@ -7,7 +7,7 @@ local active_workspace = nil
 local next_workspace_id = 1
 
 ---Normalizes the project root assigned to a workspace.
---- Reviewed: false.
+--- Reviewed: true.
 local function normalize_root(cwd)
   local root = cwd or require("config.pi.worktree").active_root() or vim.fn.getcwd()
   return vim.fn.resolve(vim.fn.fnamemodify(root, ":p")):gsub("/$", "")

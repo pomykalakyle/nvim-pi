@@ -10,6 +10,10 @@ adds another `Reviewed: false.` function, uncheck the file.
 Tests, vendored code, dependency trees, generated files, and deprecated code are
 outside this tracker.
 
+## Root
+
+- [x] `init.lua`
+
 ## `lua/`
 
 ### `lua/config/`
@@ -19,6 +23,7 @@ outside this tracker.
 - [ ] `lua/config/editor.lua`
 - [ ] `lua/config/git_worktree.lua`
 - [ ] `lua/config/keymaps.lua`
+- [x] `lua/config/lazy.lua`
 - [ ] `lua/config/project_local_config.lua`
 - [ ] `lua/config/startup.lua`
 
@@ -107,4 +112,4 @@ outside this tracker.
 
 ## `scripts/`
 
-- [ ] `scripts/launch-nvim-pi.sh`
+- [x] `scripts/launch-nvim-pi.sh`

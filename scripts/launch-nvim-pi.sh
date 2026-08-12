@@ -3,7 +3,6 @@
 # Keep Bash above Neovim so one Ghostty terminal can replace the editor process
 # whenever the user switches projects.
 
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/opt/openjdk@17/bin:$HOME/.cargo/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export XDG_CONFIG_HOME="$HOME/Documents/projects"
 export NVIM_APPNAME="nvim-pi"
 
@@ -13,7 +12,7 @@ cd "$launch_dir" || exit 1
 
 # Neovim sends USR1 immediately before a project-switch exit. Bash cannot
 # relaunch yet, so the signal handler records what to do after Neovim is gone.
-# Reviewed: false.
+# Reviewed: true.
 restart_with_picker=1
 request_project_picker() {
   restart_with_picker=1
