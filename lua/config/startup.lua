@@ -1,7 +1,6 @@
 -- Restores project UI and trusted local configuration around session changes.
 
 local group = vim.api.nvim_create_augroup("user_startup", { clear = true })
-local editor = require("config.editor")
 local project_local_config = require("config.project_local_config")
 local session_loaded = false
 
@@ -26,27 +25,12 @@ local function open_pi_for_project()
   require("config.pi.workspace").open()
 end
 
---- Opens Neo-tree after Pi and restores focus to the Pi terminal.
---- Reviewed: false.
-local function open_neo_tree_for_project()
-  editor.with_preserved_focus(--[[ Reviewed: false. ]] function()
-    require("lazy").load({ plugins = { "neo-tree.nvim" } })
-    require("neo-tree.command").execute({
-      action = "focus",
-      dir = LazyVim.root(),
-    })
-  end)
-end
-
 --- Restores the project UI after session loading has settled.
 --- Reviewed: false.
 local function restore_project_ui()
   restore_empty_filetypes()
   vim.cmd("silent! filetype detect")
   open_pi_for_project()
-  -- Session restoration briefly churns buffers, which can race Neo-tree's
-  -- debounced file-follow callback if the tree opens immediately.
-  vim.defer_fn(open_neo_tree_for_project, 100)
 end
 
 --- Loads trusted project-local configuration after the working directory changes.

@@ -1,17 +1,6 @@
--- Shared helpers for file-backed editor windows and focus restoration.
+-- Selects editor windows and restores focus around Pi UI operations.
 
 local M = {}
-
----Resolve a file path consistently across direct and symlinked buffer names.
---- Reviewed: false.
-function M.canonical_file_path(path)
-  if type(path) ~= "string" or path == "" then
-    return nil
-  end
-
-  local absolute = vim.fn.fnamemodify(path, ":p")
-  return vim.uv.fs_realpath(absolute) or vim.fs.normalize(absolute)
-end
 
 ---Return whether a normal editor window can display file-backed content.
 --- Reviewed: false.

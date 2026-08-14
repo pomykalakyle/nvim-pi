@@ -13,16 +13,20 @@ outside this tracker.
 
 - [x] `init.lua`
 
+## `colors/`
+
+- [ ] `colors/nerv.lua`
+
 ## `lua/`
 
 ### `lua/config/`
 
 - [ ] `lua/config/autocmds.lua`
 - [ ] `lua/config/colemak.lua`
-- [ ] `lua/config/editor.lua`
 - [ ] `lua/config/git_worktree.lua`
 - [ ] `lua/config/keymaps.lua`
-- [ ] `lua/config/lazy.lua`
+- [x] `lua/config/lazy.lua`
+- [ ] `lua/config/options.lua`
 - [ ] `lua/config/project_local_config.lua`
 - [ ] `lua/config/startup.lua`
 
@@ -30,7 +34,9 @@ outside this tracker.
 
 - [ ] `lua/config/pi/diff_preview.lua`
 - [ ] `lua/config/pi/file_focus.lua`
+- [ ] `lua/config/pi/file_path.lua`
 - [ ] `lua/config/pi/terminal.lua`
+- [ ] `lua/config/pi/window_focus.lua`
 - [ ] `lua/config/pi/workspace.lua`
 - [ ] `lua/config/pi/worktree.lua`
 
@@ -38,10 +44,17 @@ outside this tracker.
 
 - [ ] `lua/plugins/ai.lua`
 - [ ] `lua/plugins/blink-cmp.lua`
+- [ ] `lua/plugins/codediff.lua`
+- [ ] `lua/plugins/go.lua`
+- [ ] `lua/plugins/lazyvim.lua`
+- [ ] `lua/plugins/lsp.lua`
 - [ ] `lua/plugins/markdown.lua`
 - [ ] `lua/plugins/neo-tree.lua`
+- [ ] `lua/plugins/rust-format.lua`
+- [ ] `lua/plugins/scope.lua`
 - [ ] `lua/plugins/sessions.lua`
 - [ ] `lua/plugins/snacks.lua`
+- [ ] `lua/plugins/theme.lua`
 
 ## `pi-extensions/`
 
@@ -69,6 +82,7 @@ outside this tracker.
 
 ### `pi-extensions/neovim-diff-preview/`
 
+- [ ] `pi-extensions/neovim-diff-preview/index.ts`
 - [ ] `pi-extensions/neovim-diff-preview/neovim-client.ts`
 - [ ] `pi-extensions/neovim-diff-preview/proposal-persistence.ts`
 - [ ] `pi-extensions/neovim-diff-preview/proposal-session.ts`
@@ -94,6 +108,7 @@ outside this tracker.
 ### `pi-extensions/vibing-mode/`
 
 - [ ] `pi-extensions/vibing-mode/index.ts`
+- [ ] `pi-extensions/vibing-mode/policy.ts`
 - [ ] `pi-extensions/vibing-mode/shared.ts`
 - [ ] `pi-extensions/vibing-mode/state.ts`
 
@@ -106,4 +121,4 @@ outside this tracker.
 
 ## `scripts/`
 
-- [ ] `scripts/launch-nvim-pi.sh`
+- [x] `scripts/launch-nvim-pi.sh`

@@ -2,7 +2,7 @@
 
 local M = {}
 
-local editor = require("config.editor")
+local window_focus = require("config.pi.window_focus")
 local git_worktree = require("config.git_worktree")
 local tab_root_variable = "pi_worktree_root"
 local pending_handoffs = {}
@@ -32,7 +32,7 @@ end
 --- Opens Neo-tree at a new worktree tab's root without changing focus.
 --- Reviewed: false.
 local function open_neo_tree(root)
-  editor.with_preserved_focus(--[[ Reviewed: false. ]] function()
+  window_focus.with_preserved_focus(--[[ Reviewed: false. ]] function()
     require("lazy").load({ plugins = { "neo-tree.nvim" } })
     require("neo-tree.command").execute({
       action = "show",
@@ -68,7 +68,7 @@ end
 local function capture_editor_layout(node)
   if node[1] == "leaf" then
     local win = node[2]
-    if not editor.is_normal_window(win) then
+    if not window_focus.is_normal_window(win) then
       return nil
     end
     return {

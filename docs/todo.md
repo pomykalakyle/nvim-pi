@@ -1,5 +1,14 @@
 # TODO
 
+## Avoid repeated approval prompts for subagent writes
+
+Status: open
+Created: 2026-08-11
+
+Subagents frequently attempt to use `write`, and each attempt requires manual approval. This creates repeated interruptions whenever subagents run.
+
+Investigate why subagent writes do not use the expected approval or authorization flow, and fix the repeated approval requirement without assuming that subagents should be read-only.
+
 ## Give subagents access to Neovim-backed file tools
 
 Status: open
@@ -38,12 +47,14 @@ While an edit or write proposal is pending, the extension blocks Bash and instru
 
 Proposal review should restrict additional file mutations without blocking unrelated tool calls.
 
-## Render fenced code blocks in Pi messages
+## Improve fenced code block readability in Pi messages
 
 Status: open
 Created: 2026-08-10
 
-Pi messages sometimes display literal Markdown fence delimiters and language labels such as `lua` and `bash` instead of rendering the fenced content as code. Investigate the terminal message renderer and preserve syntax highlighting when the fences are valid.
+Pi intentionally displays literal fence delimiters around code blocks and does not give them a distinct background or frame. With the current theme and sparse syntax highlighting, code blocks are difficult to distinguish from surrounding text.
+
+Revisit this when Pi exposes a stable rendering hook or a sufficiently mature package becomes available.
 
 ## Wrap proposal preview text by default
 
@@ -102,3 +113,10 @@ Created: 2026-08-10
 Following a link shown in Pi currently requires clicking it. Moving from the keyboard to the mouse interrupts the workflow.
 
 Links shown in Pi should be accessible through a keyboard-driven interaction.
+
+## Keep focused files in the tab list
+
+Status: open
+Created: 2026-08-14
+
+Calling `focus_file` displays the requested file and range, but the buffer does not remain in the tab list at the top of Neovim. After focus changes, the file is harder to return to through normal buffer navigation.

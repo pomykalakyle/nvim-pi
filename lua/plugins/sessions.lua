@@ -10,6 +10,7 @@ return {
     },
     --[[ Reviewed: false. ]]
     init = function()
+      -- Persist neovim-project's global payload so Neo-tree can restore expanded directories.
       vim.opt.sessionoptions:append("globals")
       require("config.startup")
     end,

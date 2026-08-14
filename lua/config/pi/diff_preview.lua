@@ -2,7 +2,8 @@
 
 local M = {}
 
-local editor = require("config.editor")
+local file_paths = require("config.pi.file_path")
+local window_focus = require("config.pi.window_focus")
 
 local active_displays = {}
 local preferred_layout = vim.g.pi_diff_preview_layout == "side_by_side" and "side_by_side" or "unified"
@@ -310,7 +311,7 @@ end
 ---Only normal, non-floating editor windows are eligible.
 --- Reviewed: false.
 local function is_review_target(win)
-  return not is_preview_window(win) and editor.is_normal_window(win)
+  return not is_preview_window(win) and window_focus.is_normal_window(win)
 end
 
 ---Return the leftmost normal editor window.
@@ -371,7 +372,7 @@ end
 ---Preserve unsaved editor changes and warn instead of overwriting them.
 --- Reviewed: false.
 function M.refresh(file_path)
-  local target_path = editor.canonical_file_path(file_path)
+  local target_path = file_paths.canonical(file_path)
   if not target_path then
     return false
   end
@@ -379,7 +380,7 @@ function M.refresh(file_path)
   local matched = false
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == "" then
-      local buffer_path = editor.canonical_file_path(vim.api.nvim_buf_get_name(buf))
+      local buffer_path = file_paths.canonical(vim.api.nvim_buf_get_name(buf))
       if buffer_path == target_path then
         matched = true
         if vim.bo[buf].modified then
@@ -723,7 +724,7 @@ function M.close(requester_pid, tool_call_id)
   if closed and vim.api.nvim_get_current_tabpage() == workspace.tabpage then
     local found, terminal_win = pcall(require_pi_terminal_window, workspace)
     if found then
-      editor.focus_terminal(terminal_win)
+      window_focus.focus_terminal(terminal_win)
     end
   end
   return closed
@@ -869,7 +870,7 @@ function M.open(payload)
     }
   end
 
-  editor.focus_terminal(pi_terminal_win)
+  window_focus.focus_terminal(pi_terminal_win)
   return {
     ok = true,
     file_path = payload.file_path,

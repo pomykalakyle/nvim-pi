@@ -2,7 +2,8 @@
 
 local M = {}
 
-local editor = require("config.editor")
+local file_paths = require("config.pi.file_path")
+local window_focus = require("config.pi.window_focus")
 
 local TARGET_MARKER = "pi_file_focus_target"
 local DIM_HIGHLIGHT = "PiFileFocusDim"
@@ -100,7 +101,7 @@ end
 ---Return whether a normal editor window can display an agent-selected range.
 --- Reviewed: false.
 local function is_focus_target(win, terminal_win)
-  if win == terminal_win or not editor.is_normal_window(win) then
+  if win == terminal_win or not window_focus.is_normal_window(win) then
     return false
   end
 
@@ -141,7 +142,7 @@ local function find_focus_target(terminal_win, file_path)
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
     if is_focus_target(win, terminal_win) then
       local candidate = candidate_geometry(win)
-      local buffer_path = editor.canonical_file_path(vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win)))
+      local buffer_path = file_paths.canonical(vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win)))
       local marker_ok, marked = pcall(vim.api.nvim_win_get_var, win, TARGET_MARKER)
       candidate.shows_file = buffer_path == file_path
       candidate.marked = marker_ok and marked == true
@@ -177,7 +178,7 @@ local function load_file_buffer(file_path)
   end
 
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if editor.canonical_file_path(vim.api.nvim_buf_get_name(buf)) == file_path then
+    if file_paths.canonical(vim.api.nvim_buf_get_name(buf)) == file_path then
       local loaded, load_error = pcall(vim.fn.bufload, buf)
       if not loaded then
         return nil, tostring(load_error)
@@ -287,7 +288,7 @@ function M.focus(payload)
     return rejection("invalid_request", "end_line must be an integer at or after start_line")
   end
 
-  local file_path = editor.canonical_file_path(payload.file_path)
+  local file_path = file_paths.canonical(payload.file_path)
   if not file_path then
     return rejection("invalid_request", "file_path must be a non-empty string")
   end
@@ -324,7 +325,7 @@ function M.focus(payload)
 
   local changed, change_error = pcall(vim.api.nvim_win_set_buf, target_win, file_buf)
   if not changed then
-    editor.focus_terminal(terminal_win, true)
+    window_focus.focus_terminal(terminal_win, true)
     return rejection("editor_error", tostring(change_error), { file_path = file_path })
   end
 
@@ -342,7 +343,7 @@ function M.focus(payload)
   if range_rows > viewport_rows then
     local fitting_end = largest_fitting_end(target_win, start_row, end_row, viewport_rows)
     local restored = restore_target(target_win, snapshot)
-    editor.focus_terminal(terminal_win, true)
+    window_focus.focus_terminal(terminal_win, true)
     return rejection(
       "range_too_tall",
       ("Requested lines %d-%d require %d displayed rows, but Neovim has %d"):format(
@@ -372,7 +373,7 @@ function M.focus(payload)
   local visible = center_range(target_win, start_row, end_row, range_rows)
   if start_line < visible.start_line or end_line > visible.end_line then
     local restored = restore_target(target_win, snapshot)
-    editor.focus_terminal(terminal_win, true)
+    window_focus.focus_terminal(terminal_win, true)
     return rejection("range_not_visible", "Neovim could not keep the complete requested range visible", {
       file_path = file_path,
       start_line = start_line,
@@ -385,7 +386,7 @@ function M.focus(payload)
 
   vim.api.nvim_win_set_var(target_win, TARGET_MARKER, true)
   apply_focus_dimming(requester_pid, target_win, file_buf, start_row, end_row)
-  editor.focus_terminal(terminal_win, true)
+  window_focus.focus_terminal(terminal_win, true)
   return {
     ok = true,
     file_path = file_path,
