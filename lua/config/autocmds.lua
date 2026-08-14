@@ -1,4 +1,4 @@
--- Registers lifecycle autocmds, including cleanup of this process's project ownership marker.
+-- Registers editor lifecycle autocmds loaded by LazyVim.
 
 -- Autocmds are automatically loaded on the VeryLazy event
 -- Default autocmds that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/autocmds.lua
@@ -40,11 +40,4 @@ end
 vim.api.nvim_create_autocmd({ "FileType", "BufWinEnter", "WinEnter" }, {
   desc = "Display standalone Lua end statements as a corner until focused",
   callback = configure_lua_end_concealment,
-})
-
-local open_project_registry = require("config.project_picker.registry")
-
-vim.api.nvim_create_autocmd("VimLeavePre", {
-  --- Releases this process's project ownership marker before Neovim exits.
-  callback = open_project_registry.deactivate,
 })

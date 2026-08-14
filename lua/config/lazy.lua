@@ -1,9 +1,7 @@
--- Bootstraps lazy.nvim, loads early startup behavior, and registers LazyVim and local plugins.
+-- Registers the installed lazy.nvim runtime, LazyVim, and local plugins.
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 vim.opt.rtp:prepend(lazypath)
-
-require("config.startup")
 
 -- The actual install of plugins
 require("lazy").setup({

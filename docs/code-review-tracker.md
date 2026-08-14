@@ -1,11 +1,10 @@
 # Code review tracker
 
-This checklist tracks project-owned files that contain at least one
-`Reviewed: false.` marker.
+This checklist tracks review coverage for project-owned source files.
 
-Check a file only after every project-owned function in it has been reviewed in
-detail and its marker has been updated to `Reviewed: true.` If a later change
-adds another `Reviewed: false.` function, uncheck the file.
+Check a file only after its behavior and every project-owned function in it have
+been reviewed in detail. Update its function markers to `Reviewed: true.` when
+applicable. Uncheck a reviewed file after a later behavior change.
 
 Tests, vendored code, dependency trees, generated files, and deprecated code are
 outside this tracker.
@@ -23,7 +22,7 @@ outside this tracker.
 - [ ] `lua/config/editor.lua`
 - [ ] `lua/config/git_worktree.lua`
 - [ ] `lua/config/keymaps.lua`
-- [x] `lua/config/lazy.lua`
+- [ ] `lua/config/lazy.lua`
 - [ ] `lua/config/project_local_config.lua`
 - [ ] `lua/config/startup.lua`
 
@@ -34,11 +33,6 @@ outside this tracker.
 - [ ] `lua/config/pi/terminal.lua`
 - [ ] `lua/config/pi/workspace.lua`
 - [ ] `lua/config/pi/worktree.lua`
-
-#### `lua/config/project_picker/`
-
-- [ ] `lua/config/project_picker/picker.lua`
-- [ ] `lua/config/project_picker/registry.lua`
 
 ### `lua/plugins/`
 
@@ -112,4 +106,4 @@ outside this tracker.
 
 ## `scripts/`
 
-- [x] `scripts/launch-nvim-pi.sh`
+- [ ] `scripts/launch-nvim-pi.sh`

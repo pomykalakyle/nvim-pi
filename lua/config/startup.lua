@@ -1,11 +1,9 @@
--- Registers pre-VeryLazy startup behavior for project ownership, session restoration, Pi, and Neo-tree.
+-- Restores project UI and trusted local configuration around session changes.
 
 local group = vim.api.nvim_create_augroup("user_startup", { clear = true })
 local editor = require("config.editor")
-local open_project_registry = require("config.project_picker.registry")
 local project_local_config = require("config.project_local_config")
-local project_picker = require("config.project_picker.picker")
-project_picker.bootstrap()
+local session_loaded = false
 
 --- Re-detects filetypes for restored normal buffers missing one.
 --- Reviewed: false.
@@ -40,10 +38,20 @@ local function open_neo_tree_for_project()
   end)
 end
 
---- Records the new project root after the working directory changes.
+--- Restores the project UI after session loading has settled.
+--- Reviewed: false.
+local function restore_project_ui()
+  restore_empty_filetypes()
+  vim.cmd("silent! filetype detect")
+  open_pi_for_project()
+  -- Session restoration briefly churns buffers, which can race Neo-tree's
+  -- debounced file-follow callback if the tree opens immediately.
+  vim.defer_fn(open_neo_tree_for_project, 100)
+end
+
+--- Loads trusted project-local configuration after the working directory changes.
 --- Reviewed: false.
 local function handle_directory_changed()
-  open_project_registry.activate_current_root()
   vim.schedule(project_local_config.load_current)
 end
 
@@ -53,40 +61,26 @@ vim.api.nvim_create_autocmd("User", {
   pattern = "SessionLoadPost",
   --[[ Reviewed: false. ]]
   callback = function()
-    vim.schedule(--[[ Reviewed: false. ]] function()
-      restore_empty_filetypes()
-      vim.cmd("silent! filetype detect")
-      open_pi_for_project()
-      -- Session restoration briefly churns buffers, which can race Neo-tree's
-      -- debounced file-follow callback if the tree opens immediately.
-      vim.defer_fn(open_neo_tree_for_project, 100)
-    end)
+    session_loaded = true
+    vim.schedule(restore_project_ui)
   end,
 })
 
 vim.api.nvim_create_autocmd("DirChanged", {
   group = group,
-  --- Records project ownership after the working directory changes.
   callback = handle_directory_changed,
 })
 
 vim.api.nvim_create_autocmd("VimEnter", {
   group = group,
-  nested = true,
-  --- Starts the session-restore flow for plain empty-argv launches.
+  --- Initializes a new Projects session when there was no saved session to load.
   --[[ Reviewed: false. ]]
   callback = function()
-    if vim.fn.argc() == 0 and not vim.g.started_with_stdin then
-      if vim.g.user_project_picker_on_startup then
-        vim.schedule(--[[ Reviewed: false. ]] function()
-          project_picker.pick_project(false)
-        end)
-        return
+    vim.schedule(--[[ Reviewed: false. ]] function()
+      project_local_config.load_current()
+      if not session_loaded then
+        restore_project_ui()
       end
-
-      open_project_registry.activate_current_root()
-    end
-
-    project_local_config.load_current()
+    end)
   end,
 })

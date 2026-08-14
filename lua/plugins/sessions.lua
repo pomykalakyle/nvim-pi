@@ -11,9 +11,11 @@ return {
     --[[ Reviewed: false. ]]
     init = function()
       vim.opt.sessionoptions:append("globals")
+      require("config.startup")
     end,
     opts = {
       projects = {
+        "~/Documents/projects",
         "~/Documents/projects/sail",
         "~/Documents/projects/api-server",
         "~/Documents/projects/lakesail-session-demo",
@@ -25,7 +27,6 @@ return {
         "~/.config/nvim",
       },
       last_session_on_startup = true,
-      dashboard_mode = vim.g.user_project_picker_on_startup == true,
       debug_logging = true,
       session_manager_opts = {
         autosave_ignore_filetypes = {
@@ -47,14 +48,13 @@ return {
     --[[ Reviewed: false. ]]
     config = function(_, opts)
       require("neovim-project").setup(opts)
-      require("config.project_picker.picker").install()
     end,
     keys = {
       {
         "<leader>fp",
         --[[ Reviewed: false. ]]
         function()
-          require("config.project_picker.picker").restart_to_picker()
+          vim.cmd("NeovimProjectDiscover history")
         end,
         desc = "Projects",
       },
