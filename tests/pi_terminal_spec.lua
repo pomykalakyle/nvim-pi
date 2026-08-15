@@ -177,7 +177,7 @@ assert(pi_workspace.for_process(9001).terminal == first)
 assert(pi_workspace.for_process(9002).terminal == second)
 
 package.loaded["config.pi.diff_preview"] = {
-  close_workspace = function(workspace_id)
+  close_workspace_preview = function(workspace_id)
     closed_preview_workspaces[#closed_preview_workspaces + 1] = workspace_id
   end,
 }

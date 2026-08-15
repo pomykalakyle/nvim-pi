@@ -33,6 +33,9 @@ outside this tracker.
 #### `lua/config/pi/`
 
 - [ ] `lua/config/pi/diff_preview.lua`
+- [ ] `lua/config/pi/diff_preview/codediff.lua`
+- [ ] `lua/config/pi/diff_preview/display.lua`
+- [ ] `lua/config/pi/diff_preview/proposal.lua`
 - [ ] `lua/config/pi/file_focus.lua`
 - [ ] `lua/config/pi/file_path.lua`
 - [ ] `lua/config/pi/terminal.lua`

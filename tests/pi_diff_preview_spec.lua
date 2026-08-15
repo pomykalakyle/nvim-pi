@@ -546,7 +546,7 @@ assert(preview.reload_if_idle() == false)
 assert(#preview_windows_in_tab(second_workspace_tab) >= 1)
 assert(#preview_windows_in_tab(workspace.tabpage) >= 1)
 
-assert(preview.close_workspace(second_workspace.id, "second-workspace-preview"))
+assert(preview.close_workspace_preview(second_workspace.id, "second-workspace-preview"))
 assert(#preview_windows_in_tab(second_workspace_tab) == 0)
 assert(#preview_windows_in_tab(workspace.tabpage) >= 1)
 vim.api.nvim_set_current_tabpage(workspace.tabpage)

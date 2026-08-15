@@ -15,7 +15,9 @@ local active_workspace = nil
 local next_workspace_id = 1
 
 ---Normalizes the project root assigned to a workspace.
---- Reviewed: true.
+--- Examples: `/Users/kyle/project/` becomes `/Users/kyle/project`;
+--- a symlink path becomes its resolved target.
+--- Reviewed: false.
 local function normalize_root(cwd)
   local root = cwd or require("config.pi.worktree").active_root() or vim.fn.getcwd()
   return vim.fn.resolve(vim.fn.fnamemodify(root, ":p")):gsub("/$", "")
@@ -30,7 +32,7 @@ local function allocate_id()
 end
 
 ---Reports whether a workspace still has both required Neovim resources.
---- Reviewed: false.
+--- Reviewed: true.
 local function workspace_is_valid(workspace)
   return workspace.terminal:buf_valid() and vim.api.nvim_tabpage_is_valid(workspace.tabpage)
 end
@@ -39,20 +41,22 @@ end
 --- Reviewed: false.
 local function close_workspace_preview(workspace)
   local preview = package.loaded["config.pi.diff_preview"]
-  if preview and type(preview.close_workspace) == "function" then
-    pcall(preview.close_workspace, workspace.id)
+  if preview and type(preview.close_workspace_preview) == "function" then
+    pcall(preview.close_workspace_preview, workspace.id)
   end
 end
 
 ---Removes unreachable workspaces and stops terminals left without tabs.
 --- Reviewed: false.
-local function valid_workspaces()
+local function prune_invalid_workspaces()
   local removed_active = false
+  -- Walk backward so removing an entry does not shift an unchecked entry past us.
   for index = #workspaces, 1, -1 do
     local workspace = workspaces[index]
     if not workspace_is_valid(workspace) then
       removed_active = removed_active or active_workspace == workspace
       close_workspace_preview(workspace)
+      -- A closed tab can leave its terminal running, so stop that orphan before removing the record.
       if workspace.terminal:buf_valid() then
         workspace.terminal:close()
       end
@@ -63,6 +67,7 @@ local function valid_workspaces()
   if removed_active then
     active_workspace = nil
     local current_tab = vim.api.nvim_get_current_tabpage()
+    -- Prefer the current tab's workspace; otherwise use the last remaining workspace.
     for _, workspace in ipairs(workspaces) do
       if workspace.tabpage == current_tab then
         active_workspace = workspace
@@ -71,7 +76,6 @@ local function valid_workspaces()
     end
     active_workspace = active_workspace or workspaces[#workspaces]
   end
-  return workspaces
 end
 
 ---Adds a workspace with an already allocated identity to the registry.
@@ -93,7 +97,7 @@ end
 --- Reviewed: false.
 local function workspace_header(active_buf)
   local parts = {}
-  for index, workspace in ipairs(valid_workspaces()) do
+  for index, workspace in ipairs(workspaces) do
     local worktree = vim.fn.fnamemodify(workspace.root, ":t")
     local label = ("%d %s"):format(index, worktree)
     parts[index] = workspace.terminal.buf == active_buf and ("[" .. label .. "]") or label
@@ -104,7 +108,7 @@ end
 ---Updates every Pi terminal title after workspace ordering changes.
 --- Reviewed: false.
 local function update_titles()
-  valid_workspaces()
+  prune_invalid_workspaces()
   for _, workspace in ipairs(workspaces) do
     vim.b[workspace.terminal.buf].pi_terminal_title = workspace_header(workspace.terminal.buf)
   end
@@ -143,7 +147,8 @@ end
 ---Returns the workspace and navigation index assigned to a native tab.
 --- Reviewed: false.
 function M.for_tab(tabpage)
-  for index, workspace in ipairs(valid_workspaces()) do
+  prune_invalid_workspaces()
+  for index, workspace in ipairs(workspaces) do
     if workspace.tabpage == tabpage then
       return workspace, index
     end
@@ -153,7 +158,8 @@ end
 ---Returns the workspace with a stable Neovim-local identity.
 --- Reviewed: false.
 function M.for_id(id)
-  for _, workspace in ipairs(valid_workspaces()) do
+  prune_invalid_workspaces()
+  for _, workspace in ipairs(workspaces) do
     if workspace.id == id then
       return workspace
     end
@@ -163,7 +169,8 @@ end
 ---Returns the workspace whose Pi terminal is running the requesting process.
 --- Reviewed: false.
 function M.for_process(pid)
-  for _, workspace in ipairs(valid_workspaces()) do
+  prune_invalid_workspaces()
+  for _, workspace in ipairs(workspaces) do
     if vim.b[workspace.terminal.buf].terminal_job_pid == pid then
       return workspace
     end
@@ -179,7 +186,7 @@ end
 ---Returns the most recently active reachable Pi workspace.
 --- Reviewed: false.
 function M.active()
-  valid_workspaces()
+  prune_invalid_workspaces()
   return active_workspace
 end
 
@@ -223,7 +230,8 @@ end
 ---Switches to one workspace from the unified navigation order.
 --- Reviewed: false.
 function M.switch(index)
-  local workspace = valid_workspaces()[index]
+  prune_invalid_workspaces()
+  local workspace = workspaces[index]
   if not workspace then
     vim.notify("No Pi workspace in slot " .. tostring(index), vim.log.levels.WARN)
     return false
@@ -237,7 +245,7 @@ end
 --- Reviewed: false.
 function M.cycle(direction)
   local _, current = M.for_tab(vim.api.nvim_get_current_tabpage())
-  local total = #valid_workspaces()
+  local total = #workspaces
   if total == 0 then
     return false
   end
