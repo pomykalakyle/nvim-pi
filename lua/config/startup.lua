@@ -4,10 +4,12 @@ local group = vim.api.nvim_create_augroup("user_startup", { clear = true })
 local project_local_config = require("config.project_local_config")
 local session_loaded = false
 
---- Re-detects filetypes for restored normal buffers missing one.
---- Reviewed: false.
-local function restore_empty_filetypes()
+--- Restores filetypes after session loading.
+--- Reviewed: true.
+local function restore_filetypes()
+  -- Session loading can restore multiple file buffers, including hidden ones.
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    -- Leave unloaded, special, and already-detected buffers alone.
     if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == "" and vim.bo[buf].filetype == "" then
       local name = vim.api.nvim_buf_get_name(buf)
       local ok, filetype = pcall(vim.filetype.match, { buf = buf, filename = name })
@@ -16,21 +18,16 @@ local function restore_empty_filetypes()
       end
     end
   end
-end
 
---- Opens the interactive Pi terminal after a project session finishes loading.
---- Reviewed: false.
-local function open_pi_for_project()
-  require("lazy").load({ plugins = { "snacks.nvim" } })
-  require("config.pi.workspace").open()
+  -- Run the complete autocmd-based detection path for the current buffer.
+  vim.cmd("silent! filetype detect")
 end
 
 --- Restores the project UI after session loading has settled.
 --- Reviewed: false.
 local function restore_project_ui()
-  restore_empty_filetypes()
-  vim.cmd("silent! filetype detect")
-  open_pi_for_project()
+  restore_filetypes()
+  require("config.pi.workspace").open()
 end
 
 --- Loads trusted project-local configuration after the working directory changes.

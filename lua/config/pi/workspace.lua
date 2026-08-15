@@ -1,8 +1,16 @@
 -- Owns Pi workspaces, their native tabs, browsing context, and terminal processes.
 
+---@class PiWorkspace
+---@field id integer Stable identity within this Neovim process.
+---@field root string Project or worktree root.
+---@field tabpage integer Native Neovim tab-page handle.
+---@field terminal snacks.terminal Managed Pi terminal.
+
 local M = {}
 
+---@type PiWorkspace[]
 local workspaces = {}
+---@type PiWorkspace?
 local active_workspace = nil
 local next_workspace_id = 1
 
